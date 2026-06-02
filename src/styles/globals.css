@@ -1,0 +1,567 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* ========================================
+     DESIGN TOKEN SYSTEM - WMS Purple Theme
+     ======================================== */
+  
+  /* Base Settings */
+  --font-size: 14px; /* Smaller for dense data */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-weight-semibold: 600;
+  
+  /* Text Size Tokens */
+  --text-xs: 0.75rem;    /* 12px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-base: 0.875rem; /* 14px - Default */
+  --text-lg: 1rem;       /* 16px */
+  --text-xl: 1.25rem;    /* 20px */
+  --text-2xl: 1.5rem;    /* 24px */
+  --text-3xl: 1.875rem;  /* 30px */
+  
+  /* ========================================
+     COLOR TOKENS - Foundation Layer
+     ======================================== */
+  
+  /* Purple Brand Colors (Primary) - Tech-inspired */
+  --purple-50: #faf5ff;
+  --purple-100: #f3e8ff;
+  --purple-200: #e9d5ff;
+  --purple-300: #d8b4fe;
+  --purple-400: #c084fc;
+  --purple-500: #a855f7;  /* Main brand color */
+  --purple-600: #9333ea;
+  --purple-700: #7e22ce;
+  --purple-800: #6b21a8;
+  --purple-900: #581c87;
+  
+  /* Neutral Colors (Grays) */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+  
+  /* Success Colors (Green) */
+  --success-50: #f0fdf4;
+  --success-100: #dcfce7;
+  --success-500: #22c55e;
+  --success-600: #16a34a;
+  --success-700: #15803d;
+  
+  /* Warning Colors (Amber) */
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-500: #f59e0b;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+  
+  /* Error Colors (Red) */
+  --error-50: #fef2f2;
+  --error-100: #fee2e2;
+  --error-500: #ef4444;
+  --error-600: #dc2626;
+  --error-700: #b91c1c;
+  
+  /* Info Colors (Blue) */
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-500: #3b82f6;
+  --info-600: #2563eb;
+  --info-700: #1d4ed8;
+  
+  /* ========================================
+     SEMANTIC TOKENS - Application Layer
+     ======================================== */
+  
+  /* Layout & Background */
+  --background: #ffffff;
+  --foreground: var(--gray-900);
+  --card: #ffffff;
+  --card-foreground: var(--gray-900);
+  
+  /* Primary (Brand) */
+  --primary: var(--purple-600);
+  --primary-foreground: #ffffff;
+  --primary-hover: var(--purple-700);
+  --primary-light: var(--purple-50);
+  
+  /* Secondary */
+  --secondary: var(--gray-100);
+  --secondary-foreground: var(--gray-900);
+  --secondary-hover: var(--gray-200);
+  
+  /* Muted (Subtle backgrounds) */
+  --muted: var(--gray-100);
+  --muted-foreground: var(--gray-500);
+  
+  /* Accent */
+  --accent: var(--purple-50);
+  --accent-foreground: var(--purple-700);
+  
+  /* Destructive */
+  --destructive: var(--error-600);
+  --destructive-foreground: #ffffff;
+  
+  /* Borders & Inputs */
+  --border: var(--gray-200);
+  --border-strong: var(--gray-300);
+  --input: var(--gray-300);
+  --input-background: #ffffff;
+  --input-focus: var(--purple-500);
+  --switch-background: var(--gray-300);
+  --ring: var(--purple-500);
+  
+  /* Popover */
+  --popover: #ffffff;
+  --popover-foreground: var(--gray-900);
+  
+  /* Table Specific - For Dense Data */
+  --table-header-bg: var(--gray-50);
+  --table-header-text: var(--gray-700);
+  --table-row-hover: var(--purple-50);
+  --table-border: var(--gray-200);
+  --table-stripe: var(--gray-50);
+  
+  /* Chart Colors */
+  --chart-1: var(--purple-500);
+  --chart-2: var(--info-500);
+  --chart-3: var(--success-500);
+  --chart-4: var(--warning-500);
+  --chart-5: var(--error-500);
+  
+  /* Sidebar */
+  --sidebar: var(--gray-900);
+  --sidebar-foreground: var(--gray-100);
+  --sidebar-primary: var(--purple-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--gray-800);
+  --sidebar-accent-foreground: var(--gray-100);
+  --sidebar-border: var(--gray-800);
+  --sidebar-ring: var(--purple-500);
+  
+  /* ========================================
+     SPACING TOKENS - For Dense Layouts
+     ======================================== */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 0.75rem;   /* 12px */
+  --spacing-lg: 1rem;      /* 16px */
+  --spacing-xl: 1.5rem;    /* 24px */
+  --spacing-2xl: 2rem;     /* 32px */
+  --spacing-3xl: 3rem;     /* 48px */
+  
+  /* Component Specific Spacing */
+  --table-padding-x: var(--spacing-md);
+  --table-padding-y: var(--spacing-sm);
+  --form-spacing: var(--spacing-lg);
+  --card-padding: var(--spacing-xl);
+  
+  /* ========================================
+     RADIUS TOKENS
+     ======================================== */
+  --radius: 0.5rem;  /* 8px - Modern but not too rounded */
+  
+  /* ========================================
+     SHADOW TOKENS - Elevation System
+     ======================================== */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  /* Component Specific Shadows */
+  --shadow-card: var(--shadow-sm);
+  --shadow-dropdown: var(--shadow-lg);
+  --shadow-modal: var(--shadow-2xl);
+  --shadow-focus: 0 0 0 3px rgba(147, 51, 234, 0.1); /* Purple focus ring */
+  
+  /* ========================================
+     BORDER WIDTH TOKENS
+     ======================================== */
+  --border-width-thin: 1px;
+  --border-width-default: 1px;
+  --border-width-thick: 2px;
+  --border-width-heavy: 4px;
+  
+  /* ========================================
+     OPACITY TOKENS
+     ======================================== */
+  --opacity-0: 0;
+  --opacity-5: 0.05;
+  --opacity-10: 0.1;
+  --opacity-20: 0.2;
+  --opacity-30: 0.3;
+  --opacity-40: 0.4;
+  --opacity-50: 0.5;
+  --opacity-60: 0.6;
+  --opacity-70: 0.7;
+  --opacity-80: 0.8;
+  --opacity-90: 0.9;
+  --opacity-100: 1;
+  
+  /* State Opacities */
+  --opacity-disabled: var(--opacity-40);
+  --opacity-hover: var(--opacity-80);
+  --opacity-overlay: var(--opacity-50);
+  
+  /* ========================================
+     Z-INDEX TOKENS - Layer Management
+     ======================================== */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-tooltip: 1600;
+  --z-notification: 1700;
+  
+  /* ========================================
+     ANIMATION/TRANSITION TOKENS
+     ======================================== */
+  /* Duration */
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+  
+  /* Easing Functions */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* Common Transitions */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-normal: var(--duration-normal) var(--ease-in-out);
+  --transition-slow: var(--duration-slow) var(--ease-in-out);
+  
+  /* ========================================
+     BREAKPOINT TOKENS (for reference)
+     ======================================== */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+  
+  /* Container Widths */
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1400px;
+  
+  /* ========================================
+     ICON SIZE TOKENS - WMS Specific
+     ======================================== */
+  --icon-xs: 12px;
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+  --icon-xl: 32px;
+  --icon-2xl: 48px;
+  
+  /* ========================================
+     LAYOUT FRAMEWORK TOKENS
+     ======================================== */
+  /* Header / Top Navigation */
+  --header-height: 64px;
+  --header-padding-x: 24px;
+  
+  /* Sidebar / Side Navigation */
+  --sidebar-width: 240px;
+  --sidebar-width-collapsed: 64px;
+  --sidebar-padding-x: 16px;
+  --sidebar-menu-item-height: 40px;
+  --sidebar-submenu-indent: 24px;
+  
+  /* Main Content Area */
+  --content-padding: 24px;
+  --content-max-width: 1600px;
+  --content-spacing: 24px;
+  
+  /* Page Header */
+  --page-header-height: 72px;
+  --page-header-margin-bottom: 24px;
+  
+  /* ========================================
+     MODAL / DIALOG TOKENS
+     ======================================== */
+  /* Modal Sizes */
+  --modal-sm: 400px;
+  --modal-md: 600px;
+  --modal-lg: 800px;
+  --modal-xl: 1000px;
+  --modal-full: 90vw;
+  
+  /* Modal Structure */
+  --modal-header-height: 64px;
+  --modal-header-padding: 20px 24px;
+  --modal-body-padding: 24px;
+  --modal-footer-height: 72px;
+  --modal-footer-padding: 16px 24px;
+  --modal-border-radius: 8px;
+  
+  /* Drawer Sizes */
+  --drawer-sm: 360px;
+  --drawer-md: 480px;
+  --drawer-lg: 640px;
+  --drawer-xl: 800px;
+  
+  /* ========================================
+     CHART TOKENS
+     ======================================== */
+  /* Chart Colors - Sequence for multiple series */
+  --chart-color-1: #9333ea; /* Purple - Brand */
+  --chart-color-2: #3b82f6; /* Blue - Stability */
+  --chart-color-3: #10b981; /* Green - Growth */
+  --chart-color-4: #f59e0b; /* Orange - Warning */
+  --chart-color-5: #ec4899; /* Pink - Accent */
+  --chart-color-6: #06b6d4; /* Cyan - Neutral */
+  
+  /* Chart Primary Colors */
+  --chart-primary: var(--primary);
+  --chart-primary-light: var(--purple-400);
+  --chart-primary-dark: var(--purple-600);
+  
+  /* Chart Gradients (for area charts) */
+  --chart-gradient-start: rgba(147, 51, 234, 0.2);
+  --chart-gradient-end: rgba(147, 51, 234, 0);
+  
+  /* Chart Dimensions */
+  --chart-height-sm: 240px;
+  --chart-height-md: 320px;
+  --chart-height-lg: 400px;
+  --chart-height-xl: 480px;
+  
+  /* Chart Spacing */
+  --chart-margin: 24px;
+  --chart-padding: 16px;
+  
+  /* Chart Grid & Axis */
+  --chart-grid-color: var(--border);
+  --chart-axis-color: var(--muted-foreground);
+  --chart-axis-font-size: 12px;
+  
+  /* Chart Tooltip */
+  --chart-tooltip-bg: var(--popover);
+  --chart-tooltip-border: var(--border);
+  --chart-tooltip-shadow: var(--shadow-lg);
+  
+  /* ========================================
+     DATA FORMAT TOKENS - WMS Specific
+     ======================================== */
+  /* These are reference values for formatting */
+  --data-number-decimals: 2;
+  --data-currency-symbol: '$';
+  --data-date-format: 'YYYY-MM-DD HH:mm';
+}
+
+.dark {
+  /* Layout & Background */
+  --background: var(--gray-900);
+  --foreground: var(--gray-50);
+  --card: var(--gray-800);
+  --card-foreground: var(--gray-50);
+  
+  /* Primary */
+  --primary: var(--purple-500);
+  --primary-foreground: #ffffff;
+  --primary-hover: var(--purple-400);
+  --primary-light: var(--purple-900);
+  
+  /* Secondary */
+  --secondary: var(--gray-800);
+  --secondary-foreground: var(--gray-50);
+  --secondary-hover: var(--gray-700);
+  
+  /* Muted */
+  --muted: var(--gray-800);
+  --muted-foreground: var(--gray-400);
+  
+  /* Accent */
+  --accent: var(--gray-800);
+  --accent-foreground: var(--purple-400);
+  
+  /* Destructive */
+  --destructive: var(--error-500);
+  --destructive-foreground: #ffffff;
+  
+  /* Borders & Inputs */
+  --border: var(--gray-700);
+  --border-strong: var(--gray-600);
+  --input: var(--gray-700);
+  --input-background: var(--gray-800);
+  --input-focus: var(--purple-500);
+  --switch-background: var(--gray-600);
+  --ring: var(--purple-400);
+  
+  /* Popover */
+  --popover: var(--gray-800);
+  --popover-foreground: var(--gray-50);
+  
+  /* Table Specific */
+  --table-header-bg: var(--gray-800);
+  --table-header-text: var(--gray-200);
+  --table-row-hover: rgba(168, 85, 247, 0.1);
+  --table-border: var(--gray-700);
+  --table-stripe: var(--gray-800);
+  
+  /* Chart Colors */
+  --chart-1: var(--purple-400);
+  --chart-2: var(--info-400);
+  --chart-3: var(--success-400);
+  --chart-4: var(--warning-400);
+  --chart-5: var(--error-400);
+  
+  /* Sidebar */
+  --sidebar: var(--gray-950);
+  --sidebar-foreground: var(--gray-50);
+  --sidebar-primary: var(--purple-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--gray-800);
+  --sidebar-accent-foreground: var(--gray-50);
+  --sidebar-border: var(--gray-800);
+  --sidebar-ring: var(--purple-400);
+}
+
+@theme inline {
+  /* Tailwind Color Mappings */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  
+  /* Chart Colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  
+  /* Radius Tokens */
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Success/Warning/Error/Info */
+  --color-success: var(--success-500);
+  --color-success-light: var(--success-50);
+  --color-warning: var(--warning-500);
+  --color-warning-light: var(--warning-50);
+  --color-error: var(--error-500);
+  --color-error-light: var(--error-50);
+  --color-info: var(--info-500);
+  --color-info-light: var(--info-50);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    p {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
