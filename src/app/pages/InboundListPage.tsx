@@ -156,12 +156,21 @@ const inboundOrders = [
     status: "cancelled",
   },
 ];
-
 interface InboundListPageProps {
   onNavigate?: (path: string) => void;
 }
 
 export default function InboundListPage({ onNavigate }: InboundListPageProps) {
+  const [orders, setOrders] = useState<typeof inboundOrders>(() => {
+    if (typeof window === "undefined") return inboundOrders;
+    const stored = sessionStorage.getItem("wms_mock_inbound_orders");
+    if (stored) {
+      return JSON.parse(stored);
+    }
+    sessionStorage.setItem("wms_mock_inbound_orders", JSON.stringify(inboundOrders));
+    return inboundOrders;
+  });
+
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
@@ -170,10 +179,10 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
 
   const handleSelectAll = () => {
-    if (selectedOrders.length === inboundOrders.length) {
+    if (selectedOrders.length === orders.length) {
       setSelectedOrders([]);
     } else {
-      setSelectedOrders(inboundOrders.map((order) => order.id));
+      setSelectedOrders(orders.map((order) => order.id));
     }
   };
 
@@ -185,7 +194,33 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
 
   const handleReceive = (data: any) => {
     console.log("收货数据:", data);
-    toast.success(`收货成功！容器 ${data.container.containerNo}，共 ${data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0)} 件`);
+    const receiveQty = data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0);
+    
+    // 更新本地订单状态
+    const updatedOrders = orders.map((order) => {
+      if (order.id === currentOrderId) {
+        const [current, totalStr] = order.createdQty.split("/");
+        const total = parseInt(totalStr) || 0;
+        const newCreated = Math.min(total, (parseInt(current) || 0) + receiveQty);
+        const newCreatedQty = `${newCreated}/${total}`;
+        
+        // 自动将状态设为已完成
+        const newStatus = newCreated >= total ? "completed" : "in_progress";
+        
+        return {
+          ...order,
+          createdQty: newCreatedQty,
+          status: newStatus,
+          note: data.note ? data.note : order.note,
+        };
+      }
+      return order;
+    });
+
+    setOrders(updatedOrders);
+    sessionStorage.setItem("wms_mock_inbound_orders", JSON.stringify(updatedOrders));
+    
+    toast.success(`收货成功！容器 ${data.container.containerNo}，共 ${receiveQty} 件`);
     setReceiveDialogOpen(false);
   };
 
@@ -332,7 +367,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-3">
               <Checkbox
-                checked={selectedOrders.length === inboundOrders.length}
+                checked={selectedOrders.length === orders.length}
                 onCheckedChange={handleSelectAll}
               />
               <span className="text-sm text-muted-foreground">
@@ -363,7 +398,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
               <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedOrders.length === inboundOrders.length}
+                    checked={selectedOrders.length === orders.length}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
@@ -382,7 +417,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {inboundOrders.map((order) => (
+              {orders.map((order) => (
                 <TableRow
                   key={order.id}
                   className="hover:bg-table-row-hover transition-colors"
@@ -454,7 +489,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
         {/* Pagination */}
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            共 {inboundOrders.length} 条
+            共 {orders.length} 条
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">

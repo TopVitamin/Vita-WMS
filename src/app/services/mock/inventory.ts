@@ -136,10 +136,64 @@ const inventoryItems: InventoryItem[] = [
   },
 ];
 
+const STORAGE_KEY = "wms_mock_inventory";
+
+function getStoredInventoryItems(): InventoryItem[] {
+  if (typeof window === "undefined") return inventoryItems;
+  const stored = sessionStorage.getItem(STORAGE_KEY);
+  if (!stored) {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(inventoryItems));
+    return inventoryItems;
+  }
+  return JSON.parse(stored);
+}
+
+function saveInventoryItems(items: InventoryItem[]) {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+}
+
 export function listInventoryItems(): InventoryItem[] {
-  return inventoryItems;
+  return getStoredInventoryItems();
 }
 
 export function getInventoryItem(skuCode: string): InventoryItem | undefined {
-  return inventoryItems.find((item) => item.skuCode === skuCode);
+  return getStoredInventoryItems().find((item) => item.skuCode === skuCode);
 }
+
+export function addInventoryStock(skuCode: string, qty: number): void {
+  const items = getStoredInventoryItems();
+  const index = items.findIndex((item) => item.skuCode === skuCode);
+  if (index !== -1) {
+    const item = items[index];
+    const newTotal = item.totalStock + qty;
+    const newAvailable = item.availableStock + qty;
+    
+    // 动态重置库存状态
+    let newStatus = item.stockStatus;
+    if (newTotal === 0) {
+      newStatus = "缺货";
+    } else if (newTotal < item.safetyStock) {
+      newStatus = "不足";
+    } else if (newTotal >= item.safetyStock && (item.stockStatus === "不足" || item.stockStatus === "缺货")) {
+      newStatus = "正常";
+    }
+
+    items[index] = {
+      ...item,
+      totalStock: newTotal,
+      availableStock: newAvailable,
+      stockStatus: newStatus,
+      lastInboundDate: new Date().toISOString().split("T")[0], // 更新最后入库时间
+    };
+    saveInventoryItems(items);
+  }
+}
+
+export function resetMockInventory(): void {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(inventoryItems));
+  }
+}
+

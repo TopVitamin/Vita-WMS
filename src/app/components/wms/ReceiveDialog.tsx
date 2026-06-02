@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Package, Scan, CheckCircle2, AlertCircle } from "lucide-react";
+import { addInventoryStock } from "../../services/mock";
 import {
   Dialog,
   DialogContent,
@@ -16,6 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { toast } from "sonner";
+
+const skuMapping: Record<string, string> = {
+  "SKU-001": "ABC-123456", // 蓝牙耳机
+  "SKU-002": "ABC-123457", // 智能手环
+  "SKU-003": "JKL-901234", // 充电宝映射到 USB type-c 充电线
+};
 
 interface Container {
   containerNo: string;
@@ -113,33 +120,43 @@ export function ReceiveDialog({
     toast.success(`容器 ${containerNo} 绑定成功，开始扫描SKU`);
   };
 
-  const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && scanInput.trim()) {
-      const input = scanInput.trim();
-      
-      // 查找匹配的SKU或条形码
-      const matchedItem = receiveItems.find(
-        (item) =>
-          item.sku.toLowerCase() === input.toLowerCase() ||
-          item.barcode.toLowerCase() === input.toLowerCase()
+  const executeScanAction = (barcodeValue: string) => {
+    const input = barcodeValue.trim();
+    if (!input) return;
+
+    // 查找匹配的SKU或条形码
+    const matchedItem = receiveItems.find(
+      (item) =>
+        item.sku.toLowerCase() === input.toLowerCase() ||
+        item.barcode.toLowerCase() === input.toLowerCase()
+    );
+
+    if (matchedItem) {
+      // 增加收货数量
+      setReceiveItems(
+        receiveItems.map((item) =>
+          item.sku === matchedItem.sku
+            ? { ...item, currentReceiveQty: item.currentReceiveQty + 1 }
+            : item
+        )
       );
-
-      if (matchedItem) {
-        // 增加收货数量
-        setReceiveItems(
-          receiveItems.map((item) =>
-            item.sku === matchedItem.sku
-              ? { ...item, currentReceiveQty: item.currentReceiveQty + 1 }
-              : item
-          )
-        );
-        toast.success(`${matchedItem.sku} 已加入容器 ${container?.containerNo}，数量 +1`);
-      } else {
-        toast.error("未找到匹配的SKU或条形码");
-      }
-
-      setScanInput("");
+      toast.success(`${matchedItem.sku} 已加入容器 ${container?.containerNo}，数量 +1`);
+    } else {
+      toast.error(`未找到与 "${input}" 匹配的SKU或条形码`);
     }
+
+    setScanInput("");
+  };
+
+  const handleScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      executeScanAction(scanInput);
+    }
+  };
+
+  const simulateScan = (barcode: string) => {
+    executeScanAction(barcode);
   };
 
   const handleQtyChange = (sku: string, qty: string) => {
@@ -169,6 +186,12 @@ export function ReceiveDialog({
 
     // 过滤出有收货数量的商品
     const itemsToReceive = receiveItems.filter((item) => item.currentReceiveQty > 0);
+
+    // 累加对应库存数量
+    itemsToReceive.forEach((item) => {
+      const inventorySku = skuMapping[item.sku] || item.sku;
+      addInventoryStock(inventorySku, item.currentReceiveQty);
+    });
 
     onConfirm({
       container,
@@ -345,7 +368,19 @@ export function ReceiveDialog({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="containerNo">容器编号 *</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="containerNo">容器编号 *</Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const randomNo = `PL-${Date.now().toString().slice(-6)}`;
+                          setContainerNo(randomNo);
+                        }}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        一键生成托盘号
+                      </button>
+                    </div>
                     <Input
                       id="containerNo"
                       ref={containerInputRef}
@@ -426,6 +461,45 @@ export function ReceiveDialog({
                   onKeyDown={handleScan}
                   className="font-mono"
                 />
+                <div className="mt-3 flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-muted-foreground">一键模拟扫码:</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => simulateScan("SKU-001")}
+                  >
+                    耳机 (SKU-001)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => simulateScan("SKU-002")}
+                  >
+                    手环 (SKU-002)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => simulateScan("SKU-003")}
+                  >
+                    充电宝 (SKU-003)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs text-error-600 hover:text-error-700 hover:bg-error-50"
+                    onClick={() => simulateScan("UNKNOWN-BARCODE")}
+                  >
+                    模拟无效扫码
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   提示：扫描后按回车键自动增加数量，SKU将加入到容器 <code className="font-mono text-primary">{container.containerNo}</code>
                 </p>

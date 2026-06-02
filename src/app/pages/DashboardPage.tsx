@@ -1,6 +1,7 @@
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { listInventoryItems, resetMockInventory } from "../services/mock";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import {
@@ -25,6 +26,7 @@ import {
   ArrowDownRight,
   Plus,
   Search,
+  RefreshCcw,
   FileText,
   Warehouse,
   ShoppingCart,
@@ -51,6 +53,19 @@ interface DashboardPageProps {
 }
 
 export default function DashboardPage({ onNavigate }: DashboardPageProps) {
+  // 动态获取缓存入库单与实时库存总量
+  const storedInbound = typeof window !== "undefined" ? sessionStorage.getItem("wms_mock_inbound_orders") : null;
+  const currentInboundOrders = storedInbound ? JSON.parse(storedInbound) : [];
+  
+  // 统计待收货的订单数 (即 pending 或 in_progress)
+  const pendingInboundCount = currentInboundOrders.length > 0 
+    ? currentInboundOrders.filter((o: any) => o.status === "pending" || o.status === "in_progress").length
+    : 12; // 兜底初始12个
+
+  const inventoryItems = listInventoryItems();
+  const totalStockQty = inventoryItems.reduce((sum, item) => sum + item.totalStock, 0);
+  const totalSKUs = inventoryItems.length;
+
   // 模拟数据 - 核心指标
   const todayMetrics = {
     inbound: {
@@ -66,21 +81,30 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
       status: "down" as const,
     },
     inventory: {
-      totalItems: 125680,
-      totalSKUs: 2580,
-      capacity: 75.5,
+      totalItems: totalStockQty,
+      totalSKUs: totalSKUs,
+      capacity: parseFloat((70.0 + (totalStockQty / 2000)).toFixed(1)), // 库容率随库存数量变动
       trend: 3.8,
       status: "up" as const,
     },
     pending: {
-      toReceive: 12,
+      toReceive: pendingInboundCount,
       toPick: 45,
       toPack: 28,
       exceptions: 3,
     },
   };
 
-  // 7天业务趋势数据
+  // 一键重置演示数据逻辑
+  const handleResetAllDemoData = () => {
+    if (window.confirm("确定要重置所有演示数据吗？这会清除您刚才做的全部收货与库存修改。")) {
+      sessionStorage.removeItem("wms_mock_inbound_orders");
+      resetMockInventory();
+      window.location.reload();
+    }
+  };
+
+  // 7天业务趋势数据 (动态接入今日库存量)
   const trendData = [
     { date: "10/22", inbound: 42, outbound: 135, inventory: 122500 },
     { date: "10/23", inbound: 38, outbound: 128, inventory: 123100 },
@@ -88,7 +112,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     { date: "10/25", inbound: 47, outbound: 131, inventory: 123500 },
     { date: "10/26", inbound: 40, outbound: 125, inventory: 124200 },
     { date: "10/27", inbound: 43, outbound: 138, inventory: 124800 },
-    { date: "10/28", inbound: 45, outbound: 128, inventory: 125680 },
+    { date: "10/28", inbound: 45, outbound: 128, inventory: totalStockQty },
   ];
 
   // 待办任务
@@ -117,7 +141,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
     {
       id: 4,
       type: "待处理",
-      title: "12个入库单待收货",
+      title: `${pendingInboundCount}个入库单待收货`,
       priority: "medium",
       time: "2小时前",
     },
@@ -518,6 +542,14 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                   >
                     <BarChart3 className="w-5 h-5" />
                     <span className="text-sm">库存流水</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="col-span-2 mt-2 border-dashed border-primary/40 hover:bg-primary-light/10 text-primary flex items-center justify-center gap-2"
+                    onClick={handleResetAllDemoData}
+                  >
+                    <RefreshCcw className="w-4 h-4" />
+                    重置全套演示数据
                   </Button>
                 </div>
               </CardContent>
