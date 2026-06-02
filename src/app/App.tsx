@@ -1,4 +1,3 @@
-import "../styles/globals.css";
 import { FormEvent, ReactElement, ReactNode, useState } from "react";
 import {
   BrowserRouter,
@@ -48,7 +47,7 @@ import StocktakingWorkspacePage from "./pages/StocktakingWorkspacePage";
 import WaveDetailPage from "./pages/WaveDetailPage";
 import WaveListPage from "./pages/WaveListPage";
 import ZoneManagementPage from "./pages/ZoneManagementPage";
-import wmsLoginHero from "../assets/wms-login-hero.png";
+
 
 type NavigateHandler = (path: string) => void;
 type RoutedPageComponent = (props: { onNavigate: NavigateHandler }) => ReactElement;
@@ -65,105 +64,74 @@ function AuthScreen({ initialTab, onAuthenticated }: AuthScreenProps) {
   };
 
   return (
-    <main className="min-h-screen bg-background">
-      <div className="grid min-h-screen grid-cols-1 md:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_480px]">
-        <section className="flex min-h-[360px] flex-col justify-between border-b bg-card px-6 py-7 md:min-h-screen md:border-b-0 md:border-r md:px-8 md:py-8 lg:px-12">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded bg-primary text-primary-foreground">
-              <Warehouse className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-xl font-semibold">Vita-WMS</div>
-              <div className="text-sm text-muted-foreground">跨境电商海外仓作业演示系统</div>
-            </div>
+    <main className="min-h-screen bg-muted/30 flex flex-col items-center justify-center p-4 md:p-8">
+      <div className="w-full max-w-[420px] space-y-8">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-sm text-primary-foreground">
+            <Warehouse className="h-7 w-7" />
           </div>
-
-          <div className="max-w-3xl py-8 md:py-10 xl:py-14">
-            <div className="mb-4 inline-flex items-center gap-2 rounded border px-3 py-1 text-sm text-muted-foreground">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              Demo Environment
-            </div>
-            <h1 className="max-w-3xl text-3xl font-semibold leading-tight lg:text-4xl xl:text-5xl">
-              从入库、上架、拣货、打包到库存盘点的一体化海外仓 WMS
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-              用于课程演示的前端 Demo，登录后直接进入业务工作台，可查看入库、出库、库存、SKU、波次、拣货、打包和盘点等核心页面。
-            </p>
-
-            <div className="mt-7 overflow-hidden rounded-lg border bg-background shadow-sm">
-              <img
-                src={wmsLoginHero}
-                alt="海外仓 WMS 作业场景"
-                className="h-56 w-full object-cover md:h-60 xl:h-72"
-              />
-            </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">Vita-WMS</h1>
+            <p className="text-sm text-muted-foreground mt-1">跨境电商海外仓作业演示系统</p>
           </div>
+        </div>
 
-          <div className="hidden text-sm text-muted-foreground md:block">
-            Warehouse demo for Amazon US, eBay UK, Walmart Canada and Shopify merchants.
-          </div>
-        </section>
+        <Card className="shadow-lg border-muted/60">
+          <CardContent className="pt-6">
+            <Tabs defaultValue={initialTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="login">登录</TabsTrigger>
+                <TabsTrigger value="register">注册</TabsTrigger>
+              </TabsList>
 
-        <section className="flex items-center justify-center px-5 py-6 md:min-h-screen md:px-7">
-          <Card className="w-full max-w-md">
-            <CardHeader className="pb-4">
-              <CardTitle>进入 WMS</CardTitle>
-              <CardDescription>演示环境不校验账号，填写任意信息即可进入系统。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue={initialTab}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login">
-                    <Lock className="mr-2 h-4 w-4" />
-                    登录
-                  </TabsTrigger>
-                  <TabsTrigger value="register">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    注册
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="login" className="mt-5">
-                  <form className="space-y-3" onSubmit={handleSubmit}>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-account">账号</Label>
-                      <Input id="login-account" defaultValue="demo@baoxia-wms.com" />
-                    </div>
-                    <div className="space-y-2">
+              <TabsContent value="login">
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                  <div className="space-y-2">
+                    <Label htmlFor="login-account">账号</Label>
+                    <Input id="login-account" defaultValue="demo@baoxia-wms.com" className="h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
                       <Label htmlFor="login-password">密码</Label>
-                      <Input id="login-password" type="password" defaultValue="demo123456" />
+                      <a href="#" className="text-xs text-primary hover:underline" onClick={(e) => e.preventDefault()}>忘记密码?</a>
                     </div>
-                    <Button className="w-full" type="submit">
-                      登录并进入工作台
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </form>
-                </TabsContent>
+                    <Input id="login-password" type="password" defaultValue="demo123456" className="h-10" />
+                  </div>
+                  <Button className="w-full h-10 mt-2" type="submit">
+                    进入工作台
+                  </Button>
+                </form>
+              </TabsContent>
 
-                <TabsContent value="register" className="mt-5">
-                  <form className="space-y-3" onSubmit={handleSubmit}>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-name">姓名</Label>
-                      <Input id="register-name" placeholder="例如：海外仓运营主管" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-email">邮箱</Label>
-                      <Input id="register-email" type="email" placeholder="name@example.com" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-password">密码</Label>
-                      <Input id="register-password" type="password" placeholder="至少 8 位" />
-                    </div>
-                    <Button className="w-full" type="submit">
-                      注册并进入工作台
-                      <PackageCheck className="ml-2 h-4 w-4" />
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </section>
+              <TabsContent value="register">
+                <form className="space-y-5" onSubmit={handleSubmit}>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-name">姓名</Label>
+                    <Input id="register-name" placeholder="例如：海外仓运营" className="h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">邮箱</Label>
+                    <Input id="register-email" type="email" placeholder="name@example.com" className="h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">密码</Label>
+                    <Input id="register-password" type="password" placeholder="至少 8 位" className="h-10" />
+                  </div>
+                  <Button className="w-full h-10 mt-2" type="submit">
+                    注册并进入工作台
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+
+        <p className="text-center text-xs text-muted-foreground px-8 leading-relaxed">
+          点击进入工作台即表示您同意我们的
+          <a href="#" className="underline underline-offset-4 hover:text-primary mx-1" onClick={(e) => e.preventDefault()}>服务条款</a>
+          和
+          <a href="#" className="underline underline-offset-4 hover:text-primary mx-1" onClick={(e) => e.preventDefault()}>隐私政策</a>。
+        </p>
       </div>
     </main>
   );

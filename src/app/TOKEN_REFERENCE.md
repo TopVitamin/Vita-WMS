@@ -105,15 +105,15 @@
 
 ## 📏 间距 Token
 
-### 基础间距
+### 基础间距（注：因根字号为 14px，1rem = 14px）
 ```
---spacing-xs    4px    (0.25rem)  最小间距
---spacing-sm    8px    (0.5rem)   表格单元格
---spacing-md    12px   (0.75rem)  表格、表单
---spacing-lg    16px   (1rem)     卡片内边距
---spacing-xl    24px   (1.5rem)   区块间距
---spacing-2xl   32px   (2rem)     大区块
---spacing-3xl   48px   (3rem)     页面级间距
+--spacing-xs    3.5px  (0.25rem)  最小间距
+--spacing-sm    7px    (0.5rem)   表格单元格
+--spacing-md    10.5px (0.75rem)  表格、表单
+--spacing-lg    14px   (1rem)     卡片内边距
+--spacing-xl    21px   (1.5rem)   区块间距
+--spacing-2xl   28px   (2rem)     大区块
+--spacing-3xl   42px   (3rem)     页面级间距
 ```
 
 ### 组件专用间距
@@ -275,17 +275,17 @@
 
 ## 📝 字体 Token
 
-### 字号
+### 字号（注：因根字号为 14px，实际渲染会进一步缩小）
 ```
-基础字号: 14px  （适合信息密集界面）
+基础设置: html { font-size: 14px; }
 
---text-xs        12px
---text-sm        14px
---text-base      14px   ⭐ 默认
---text-lg        16px
---text-xl        20px
---text-2xl       24px
---text-3xl       30px
+--text-xs        10.5px (0.75rem)
+--text-sm        12.25px (0.875rem)
+--text-base      12.25px (0.875rem) ⭐ 默认
+--text-lg        14px (1rem)
+--text-xl        17.5px (1.25rem)
+--text-2xl       21px (1.5rem)
+--text-3xl       26.25px (1.875rem)
 ```
 
 ### 字重

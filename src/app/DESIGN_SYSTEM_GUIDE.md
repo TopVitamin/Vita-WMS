@@ -100,11 +100,11 @@ function getOrderStatusColor(status) {
 ### 2. 间距 Token
 
 ```css
-/* CSS 变量 */
-padding: var(--spacing-sm); /* 8px - 表格内边距 */
-padding: var(--spacing-md); /* 12px - 表格/表单 */
-padding: var(--spacing-lg); /* 16px - 卡片 */
-padding: var(--spacing-xl); /* 24px - 大区块 */
+/* CSS 变量（注：因根字号 14px，实际渲染值为原注释的 7/8） */
+padding: var(--spacing-sm); /* 实际渲染 7px - 表格内边距 */
+padding: var(--spacing-md); /* 实际渲染 10.5px - 表格/表单 */
+padding: var(--spacing-lg); /* 实际渲染 14px - 卡片 */
+padding: var(--spacing-xl); /* 实际渲染 21px - 大区块 */
 
 /* 组件专用 */
 padding: var(--table-padding-x) var(--table-padding-y); /* 表格 */
@@ -145,14 +145,14 @@ z-index: var(--z-tooltip); /* 1600 - 提示框 */
 #### 字号系统
 
 ```css
-/* 字号层级 - 专为信息密集型设计 */
---text-xs: 12px;      /* 次要标签、辅助文字 */
---text-sm: 14px;      /* 小号文字、表格内容 */
---text-base: 14px;    /* 基础字号（默认）*/
---text-lg: 16px;      /* 卡片标题、表单标签 */
---text-xl: 20px;      /* 页面副标题 */
---text-2xl: 24px;     /* 页面主标题 */
---text-3xl: 30px;     /* 特大标题、数据大屏 */
+/* 字号层级 - 专为信息密集型设计（注：受 14px 根字号影响，实际渲染变小）*/
+--text-xs: 0.75rem;      /* 实际渲染 10.5px - 次要标签、辅助文字 */
+--text-sm: 0.875rem;     /* 实际渲染 12.25px - 小号文字、表格内容 */
+--text-base: 0.875rem;   /* 实际渲染 12.25px - 基础字号（默认）*/
+--text-lg: 1rem;         /* 实际渲染 14px - 卡片标题、表单标签 */
+--text-xl: 1.25rem;      /* 实际渲染 17.5px - 页面副标题 */
+--text-2xl: 1.5rem;      /* 实际渲染 21px - 页面主标题 */
+--text-3xl: 1.875rem;    /* 实际渲染 26.25px - 特大标题、数据大屏 */
 ```
 
 #### 字重系统

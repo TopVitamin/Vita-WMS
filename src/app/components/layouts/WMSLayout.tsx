@@ -1,7 +1,7 @@
 import { useState, ReactNode } from "react";
 import {
   Warehouse, PackageCheck, PackageMinus, BarChart3, Database,
-  Home, Search, ChevronRight, ClipboardList, PackageOpen
+  Home, Search, ChevronRight, ClipboardList, PackageOpen, CircleUser, LogOut
 } from "lucide-react";
 import { Button } from "../ui/button";
 import {
@@ -38,7 +38,30 @@ interface WMSLayoutProps {
 }
 
 export function WMSLayout({ children, title, currentPath, onNavigate }: WMSLayoutProps) {
-  const [openMenus, setOpenMenus] = useState<string[]>(["出库", "库存", "基础数据"]);
+  const [openMenus, setOpenMenus] = useState<string[]>(() => {
+    // Check if we have stored state
+    if (typeof sessionStorage !== 'undefined') {
+      const stored = sessionStorage.getItem("wms_sidebar_open_menus");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    // Default state if nothing is stored
+    const defaultOpen = ["出库", "库存", "基础数据"];
+    if (currentPath.startsWith("/inbound") || currentPath.startsWith("/putaway")) {
+      defaultOpen.push("入库");
+    }
+    if (currentPath.startsWith("/reports")) {
+      defaultOpen.push("报表");
+    }
+    return Array.from(new Set(defaultOpen));
+  });
 
   const sidebarMenuItems: MenuItem[] = [
     { icon: Home, label: "首页", path: "/", isActive: currentPath === "/" },
@@ -107,10 +130,15 @@ export function WMSLayout({ children, title, currentPath, onNavigate }: WMSLayou
     },
   ];
 
+  // Save to sessionStorage whenever it changes manually
   const toggleMenu = (label: string) => {
-    setOpenMenus((prev) =>
-      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
-    );
+    setOpenMenus((prev) => {
+      const next = prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label];
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem("wms_sidebar_open_menus", JSON.stringify(next));
+      }
+      return next;
+    });
   };
 
   const handleMenuClick = (path: string) => {
@@ -189,16 +217,26 @@ export function WMSLayout({ children, title, currentPath, onNavigate }: WMSLayou
             <div className="flex items-center gap-4">
               <h1 className="text-xl">{title}</h1>
             </div>
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="sm">
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
                 <Search className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm">
-                Bobby
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => onNavigate("/logout")}>
-                退出
-              </Button>
+              
+              <div className="flex items-center gap-1 border-l pl-2 ml-1">
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+                  <CircleUser className="w-4 h-4" />
+                  Vitamin
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors" 
+                  onClick={() => onNavigate("/logout")}
+                  title="退出"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </header>
 
