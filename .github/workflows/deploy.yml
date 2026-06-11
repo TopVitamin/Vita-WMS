@@ -25,13 +25,21 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SERVER_SSH_KEY }}
+      - name: Install SSH key
+        env:
+          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SSH_HOST: ${{ secrets.SERVER_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Deploy to server
+        env:
+          SSH_USER: ${{ secrets.SERVER_USER }}
+          SSH_HOST: ${{ secrets.SERVER_HOST }}
         run: |
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" \
+          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             dist/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/pmvitamin.com/projects/Vita-WMS/
+            "$SSH_USER@$SSH_HOST:/var/www/pmvitamin.com/projects/Vita-WMS/"
