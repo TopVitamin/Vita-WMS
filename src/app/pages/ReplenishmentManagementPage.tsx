@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, Download, Plus, RefreshCcw, Search, Settings2 } from "lucide-react";
 import { WMSLayout } from "../components/layouts/WMSLayout";
-import { DataTableHeaderRow, KpiCard, StatusBadge } from "../components/business";
+import { DataTableHeaderRow, KpiCard, StatusBadge, ListPageLayout, PageHeader, DataTableShell } from "../components/business";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -89,35 +89,48 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
 
   return (
     <WMSLayout title="补货管理" currentPath="/inventory/replenishment" onNavigate={onNavigate}>
-      <div className="p-6 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">补货管理</h2>
-            <p className="mt-1 text-sm text-muted-foreground">根据安全库存和拣货位缺口生成补货任务，支持人工执行确认。</p>
+      <ListPageLayout
+        header={
+          <PageHeader
+            title="补货管理"
+            description="根据安全库存和拣货位缺口生成补货任务，支持人工执行确认。"
+            actions={
+              <div className="flex gap-2">
+                <Button variant="outline">
+                  <Download className="h-4 w-4" />
+                  导出
+                </Button>
+                <Button onClick={() => setIsCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  新建补货
+                </Button>
+              </div>
+            }
+          />
+        }
+        kpis={
+          <div className="grid grid-cols-4 gap-4">
+            <KpiCard label="补货任务" value={stats.total} />
+            <KpiCard label="待处理" value={stats.pending} tone="warning" />
+            <KpiCard label="执行中" value={stats.running} tone="info" />
+            <KpiCard label="低库存 SKU" value={stats.lowStock} tone="error" />
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Download className="h-4 w-4" />
-              导出
-            </Button>
-            <Button onClick={() => setIsCreateOpen(true)}>
-              <Plus className="h-4 w-4" />
-              新建补货
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-4 gap-4">
-          <KpiCard label="补货任务" value={stats.total} />
-          <KpiCard label="待处理" value={stats.pending} tone="warning" />
-          <KpiCard label="执行中" value={stats.running} tone="info" />
-          <KpiCard label="低库存 SKU" value={stats.lowStock} tone="error" />
-        </div>
-
-        <Tabs defaultValue="tasks" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="tasks">补货任务</TabsTrigger>
-            <TabsTrigger value="strategy">补货策略</TabsTrigger>
+        }
+      >
+        <Tabs defaultValue="tasks" className="w-full space-y-4">
+          <TabsList className="bg-muted/60 p-1 rounded-lg">
+            <TabsTrigger 
+              value="tasks"
+              className="rounded-md px-4 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              补货任务
+            </TabsTrigger>
+            <TabsTrigger 
+              value="strategy"
+              className="rounded-md px-4 py-1.5 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm"
+            >
+              补货策略
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="tasks" className="space-y-4">
@@ -151,7 +164,7 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
                 <CardDescription>任务完成后会生成补货单库存流水。</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-hidden rounded-b-lg border-t">
+                <DataTableShell>
                   <Table>
                     <TableHeader>
                       <DataTableHeaderRow>
@@ -171,7 +184,18 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
                       {filteredTasks.map((task) => (
                         <TableRow key={task.replenishmentNo}>
                           <TableCell className="font-mono">{task.replenishmentNo}</TableCell>
-                          <TableCell className="font-mono text-sm">{task.skuCode}</TableCell>
+                          <TableCell>
+                            <a
+                              href="#"
+                              className="font-mono text-primary hover:underline text-sm"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                onNavigate?.(`/inventory/detail/${task.skuCode}`);
+                              }}
+                            >
+                              {task.skuCode}
+                            </a>
+                          </TableCell>
                           <TableCell>{task.productName}</TableCell>
                           <TableCell className="text-right">{task.currentStock}</TableCell>
                           <TableCell className="text-right">{task.safetyStock}</TableCell>
@@ -195,7 +219,7 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                </DataTableShell>
               </CardContent>
             </Card>
           </TabsContent>
@@ -210,7 +234,7 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
                 <CardDescription>低于安全库存的 SKU 会进入补货建议池。</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-hidden rounded-b-lg border-t">
+                <DataTableShell>
                   <Table>
                     <TableHeader>
                       <DataTableHeaderRow>
@@ -228,7 +252,18 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
                         const gap = item.safetyStock - item.availableStock;
                         return (
                           <TableRow key={item.skuCode}>
-                            <TableCell className="font-mono">{item.skuCode}</TableCell>
+                            <TableCell>
+                              <a
+                                href="#"
+                                className="font-mono text-primary hover:underline text-sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onNavigate?.(`/inventory/detail/${item.skuCode}`);
+                                }}
+                              >
+                                {item.skuCode}
+                              </a>
+                            </TableCell>
                             <TableCell>{item.productName}</TableCell>
                             <TableCell>{item.customerName}</TableCell>
                             <TableCell className="text-right">{item.availableStock}</TableCell>
@@ -253,7 +288,7 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
                       })}
                     </TableBody>
                   </Table>
-                </div>
+                </DataTableShell>
               </CardContent>
             </Card>
           </TabsContent>
@@ -298,7 +333,7 @@ export default function ReplenishmentManagementPage({ onNavigate }: Replenishmen
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+      </ListPageLayout>
     </WMSLayout>
   );
 }

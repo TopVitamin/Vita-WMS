@@ -1284,7 +1284,16 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
                           </TableCell>
                           <TableCell>
                             {location.currentSku ? (
-                              <span className="font-mono text-sm">{location.currentSku}</span>
+                              <a
+                                href="#"
+                                className="font-mono text-primary hover:underline text-sm"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onNavigate?.(`/inventory/detail/${location.currentSku}`);
+                                }}
+                              >
+                                {location.currentSku}
+                              </a>
                             ) : (
                               <span className="text-muted-foreground text-sm">空</span>
                             )}

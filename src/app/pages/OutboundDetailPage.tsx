@@ -559,7 +559,16 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                         return (
                           <TableRow key={item.sku}>
                             <TableCell>
-                              <code className="text-xs font-mono text-primary">{item.sku}</code>
+                              <a
+                                href="#"
+                                className="font-mono text-primary hover:underline text-xs"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onNavigate?.(`/inventory/detail/${item.sku}`);
+                                }}
+                              >
+                                {item.sku}
+                              </a>
                             </TableCell>
                             <TableCell>{item.productName}</TableCell>
                             <TableCell>

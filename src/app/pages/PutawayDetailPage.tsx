@@ -233,7 +233,16 @@ export default function PutawayDetailPage({
                         return (
                           <TableRow key={idx} className="hover:bg-table-row-hover">
                             <TableCell>
-                              <code className="text-sm font-mono text-primary">{item.sku}</code>
+                               <a
+                                 href="#"
+                                 className="font-mono text-primary hover:underline text-xs"
+                                 onClick={(e) => {
+                                   e.preventDefault();
+                                   onNavigate?.(`/inventory/detail/${item.sku}`);
+                                 }}
+                               >
+                                 {item.sku}
+                               </a>
                             </TableCell>
                             <TableCell>{item.productName}</TableCell>
                             <TableCell>
