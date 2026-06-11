@@ -11,6 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { ConfirmActionDialog, DataTableHeaderRow, StatusBadge, StickyActionTableCell, StickyActionTableHead } from "../components/business";
+import { enabledStatusMap } from "../configs/wmsStatusMap";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +50,7 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [barcodes, setBarcodes] = useState<string[]>([]);
   const [newBarcode, setNewBarcode] = useState("");
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
 
   // 模拟数据 - 支持一品多码
   const productData = [
@@ -198,8 +202,12 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
   };
 
   const handleDelete = (productId: string) => {
-    // 实际项目中这里应该调用API
-    console.log("Delete product:", productId);
+    setDeleteProductId(productId);
+  };
+
+  const confirmDeleteProduct = () => {
+    if (deleteProductId) toast.success(`商品 ${deleteProductId} 已删除`);
+    setDeleteProductId(null);
   };
 
   const handleAddBarcode = () => {
@@ -223,8 +231,8 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
     <WMSLayout title="商品资料" currentPath="/master-data/products" onNavigate={handleNavigate}>
       <div className="p-6 space-y-6">
         {/* 操作栏 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
@@ -341,10 +349,10 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
         )}
 
         {/* 表格 */}
-        <div className="border rounded-lg overflow-hidden">
-          <Table>
+        <div className="overflow-x-auto rounded-lg border">
+          <Table className="min-w-[1120px]">
             <TableHeader>
-              <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+              <DataTableHeaderRow>
                 <TableHead className="w-12">
                   <Checkbox
                     checked={selectedItems.length === productData.length}
@@ -362,19 +370,14 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
                 <TableHead className="text-right">当前库存</TableHead>
                 <TableHead className="text-right">安全库存</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
+                <StickyActionTableHead>操作</StickyActionTableHead>
+              </DataTableHeaderRow>
             </TableHeader>
             <TableBody>
               {productData.map((product, index) => (
                 <TableRow
                   key={product.productId}
-                  className="hover:bg-table-row-hover transition-colors"
-                  style={{
-                    backgroundColor: selectedItems.includes(`product-${index}`)
-                      ? "var(--table-row-hover)"
-                      : undefined,
-                  }}
+                  className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`product-${index}`) ? "bg-table-row-hover" : ""}`}
                 >
                   <TableCell>
                     <Checkbox
@@ -452,17 +455,9 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
                     {product.safetyStock ? product.safetyStock.toLocaleString() : "-"}
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={product.status === "启用" ? "default" : "secondary"}
-                      className={product.status === "启用" 
-                        ? "bg-success-50 text-success-700 border-success-200" 
-                        : "bg-gray-100 text-gray-600 border-gray-200"
-                      }
-                    >
-                      {product.status}
-                    </Badge>
+                    <StatusBadge {...enabledStatusMap[product.status]} />
                   </TableCell>
-                  <TableCell className="text-right">
+                  <StickyActionTableCell>
                     <div className="flex items-center justify-end gap-1">
                       <Button 
                         variant="ghost" 
@@ -479,7 +474,7 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
-                  </TableCell>
+                  </StickyActionTableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -548,7 +543,7 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
                     placeholder="输入条形码" 
                     value={newBarcode}
                     onChange={(e) => setNewBarcode(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddBarcode()}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddBarcode()}
                   />
                   <Button 
                     type="button" 
@@ -725,7 +720,7 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
                       placeholder="输入条形码" 
                       value={newBarcode}
                       onChange={(e) => setNewBarcode(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAddBarcode()}
+                      onKeyDown={(e) => e.key === "Enter" && handleAddBarcode()}
                     />
                     <Button 
                       type="button" 
@@ -865,6 +860,18 @@ export default function ProductMasterDataPage({ onNavigate }: ProductMasterDataP
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmActionDialog
+        destructive
+        confirmLabel="确认删除"
+        description="删除商品会影响 SKU、库存查询和历史单据展示。当前演示环境仅展示删除确认流程。"
+        onConfirm={confirmDeleteProduct}
+        onOpenChange={(open) => {
+          if (!open) setDeleteProductId(null);
+        }}
+        open={Boolean(deleteProductId)}
+        title="删除商品"
+      />
     </WMSLayout>
   );
 }

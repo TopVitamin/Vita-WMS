@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow } from "../components/business";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { Progress } from "../components/ui/progress";
 import { Checkbox } from "../components/ui/checkbox";
@@ -525,7 +526,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className={`flex items-center gap-3 ${currentStep === "wave" ? "text-primary" : currentWave ? "text-success" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === "wave" ? "bg-primary text-white" : currentWave ? "bg-success text-white" : "bg-muted"}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === "wave" ? "bg-primary text-primary-foreground" : currentWave ? "bg-success text-success-foreground" : "bg-muted"}`}>
                   {currentWave ? <CheckCircle2 className="w-5 h-5" /> : "1"}
                 </div>
                 <div>
@@ -537,7 +538,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
               
               <div className={`flex items-center gap-3 ${currentStep === "wall" ? "text-primary" : currentWall ? "text-success" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === "wall" ? "bg-primary text-white" : currentWall ? "bg-success text-white" : "bg-muted"}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === "wall" ? "bg-primary text-primary-foreground" : currentWall ? "bg-success text-success-foreground" : "bg-muted"}`}>
                   {currentWall ? <CheckCircle2 className="w-5 h-5" /> : "2"}
                 </div>
                 <div>
@@ -549,7 +550,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
               <ArrowRight className="w-5 h-5 text-muted-foreground" />
               
               <div className={`flex items-center gap-3 ${currentStep === "seeding" ? "text-primary" : "text-muted-foreground"}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === "seeding" ? "bg-primary text-white" : "bg-muted"}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === "seeding" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                   3
                 </div>
                 <div>
@@ -623,7 +624,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
                     />
                   </div>
                   
-                  <div className="p-3 bg-info/10 border border-info/20 rounded-lg text-sm text-info-foreground">
+                  <div className="rounded-lg border border-info/20 bg-info/10 p-3 text-sm text-info-700">
                     系统将自动分配 {currentWave.orderCount} 个订单到播种墙格口
                   </div>
                 </CardContent>
@@ -686,7 +687,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
                             />
                           </div>
                         ) : (
-                          <div className="p-3 bg-info/10 border border-info/20 rounded-lg text-sm text-info-foreground">
+                          <div className="rounded-lg border border-info/20 bg-info/10 p-3 text-sm text-info-700">
                             点击右侧高亮格口进行投放
                           </div>
                         )}
@@ -884,7 +885,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
                                   <Badge 
                                     variant="outline" 
                                     className={`text-xs px-1.5 py-0.5 ${
-                                      slot.highlight ? 'bg-primary text-white border-primary' : ''
+                                      slot.highlight ? 'bg-primary text-primary-foreground border-primary' : ''
                                     }`}
                                   >
                                     {slot.shortCode}
@@ -945,7 +946,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
                         <TableHeader>
-                          <TableRow>
+                          <DataTableHeaderRow>
                             <TableHead>格口</TableHead>
                             <TableHead>订单号</TableHead>
                             <TableHead>客户</TableHead>
@@ -953,7 +954,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
                             <TableHead className="text-right">已播种</TableHead>
                             <TableHead className="text-right">进度</TableHead>
                             <TableHead className="text-center">状态</TableHead>
-                          </TableRow>
+                          </DataTableHeaderRow>
                         </TableHeader>
                         <TableBody>
                           {currentWall.slots

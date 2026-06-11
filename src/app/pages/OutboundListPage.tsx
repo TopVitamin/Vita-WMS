@@ -1,11 +1,10 @@
 import "../../styles/globals.css";
 import { useState } from "react";
 import { 
-  Filter, Download, Plus, MoreHorizontal, Eye, Search, Layers, X
+  Filter, Download, Plus, MoreHorizontal, Eye, Search, Layers, X, Package
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
@@ -17,179 +16,82 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { WMSLayout } from "../components/layouts/WMSLayout";
-
-// 模拟数据
-const outboundOrders = [
-  {
-    id: "OB001042103501",
-    waveNo: "-",
-    outboundType: "sales",
-    orderType: "single_single",
-    customer: "Amazon-US",
-    orderNo: "AMZ-2024-100563",
-    skuCount: 1,
-    totalQty: 1,
-    status: "pending_wave",
-    picker: "-",
-    planShipDate: "2024-10-28",
-    carrier: "FedEx",
-    trackingNo: "-",
-    createdAt: "2024-10-27 10:23",
-  },
-  {
-    id: "OB001042103502",
-    waveNo: "-",
-    outboundType: "sales",
-    orderType: "single_multi",
-    customer: "Shopify-EU",
-    orderNo: "SPF-2024-088745",
-    skuCount: 1,
-    totalQty: 5,
-    status: "pending_wave",
-    picker: "-",
-    planShipDate: "2024-10-28",
-    carrier: "DHL",
-    trackingNo: "-",
-    createdAt: "2024-10-27 09:15",
-  },
-  {
-    id: "OB001042103503",
-    waveNo: "-",
-    outboundType: "sales",
-    orderType: "multi_mixed",
-    customer: "eBay-UK",
-    orderNo: "EBAY-2024-056321",
-    skuCount: 3,
-    totalQty: 8,
-    status: "pending_wave",
-    picker: "-",
-    planShipDate: "2024-10-29",
-    carrier: "UPS",
-    trackingNo: "-",
-    createdAt: "2024-10-27 08:45",
-  },
-  {
-    id: "OB001042003498",
-    waveNo: "WAVE-2024-0028",
-    outboundType: "sales",
-    orderType: "single_single",
-    customer: "Amazon-US",
-    orderNo: "AMZ-2024-100321",
-    skuCount: 1,
-    totalQty: 1,
-    status: "waved",
-    picker: "张三",
-    planShipDate: "2024-10-28",
-    carrier: "FedEx",
-    trackingNo: "-",
-    createdAt: "2024-10-20 14:20",
-  },
-  {
-    id: "OB001042003499",
-    waveNo: "WAVE-2024-0028",
-    outboundType: "sales",
-    orderType: "single_multi",
-    customer: "Walmart-US",
-    orderNo: "WMT-2024-087654",
-    skuCount: 1,
-    totalQty: 10,
-    status: "waved",
-    picker: "张三",
-    planShipDate: "2024-10-28",
-    carrier: "USPS",
-    trackingNo: "-",
-    createdAt: "2024-10-20 14:22",
-  },
-  {
-    id: "OB001041503480",
-    waveNo: "WAVE-2024-0027",
-    outboundType: "sales",
-    orderType: "multi_mixed",
-    customer: "Amazon-EU",
-    orderNo: "AMZ-EU-2024-034512",
-    skuCount: 5,
-    totalQty: 25,
-    status: "picking",
-    picker: "李四",
-    planShipDate: "2024-10-27",
-    carrier: "DHL",
-    trackingNo: "-",
-    createdAt: "2024-10-15 11:30",
-  },
-  {
-    id: "OB001041003450",
-    waveNo: "WAVE-2024-0026",
-    outboundType: "transfer",
-    orderType: "multi_mixed",
-    customer: "深圳仓库",
-    orderNo: "TR-2024-002365",
-    skuCount: 8,
-    totalQty: 100,
-    status: "shipped",
-    picker: "王五",
-    planShipDate: "2024-10-25",
-    carrier: "顺丰",
-    trackingNo: "SF1234567890",
-    createdAt: "2024-10-10 09:15",
-  },
-  {
-    id: "OB001040803421",
-    waveNo: "WAVE-2024-0025",
-    outboundType: "sales",
-    orderType: "single_single",
-    customer: "Target-US",
-    orderNo: "TGT-2024-098745",
-    skuCount: 1,
-    totalQty: 1,
-    status: "completed",
-    picker: "赵六",
-    planShipDate: "2024-10-22",
-    carrier: "UPS",
-    trackingNo: "1Z999AA10123456784",
-    createdAt: "2024-10-08 16:40",
-  },
-  {
-    id: "OB001040203398",
-    waveNo: "-",
-    outboundType: "sales",
-    orderType: "single_multi",
-    customer: "Amazon-JP",
-    orderNo: "AMZ-JP-2024-076543",
-    skuCount: 1,
-    totalQty: 20,
-    status: "cancelled",
-    picker: "-",
-    planShipDate: "-",
-    carrier: "-",
-    trackingNo: "-",
-    createdAt: "2024-10-02 13:25",
-  },
-  {
-    id: "OB001039903375",
-    waveNo: "-",
-    outboundType: "return",
-    orderType: "multi_mixed",
-    customer: "Shopify-CA",
-    orderNo: "RET-2024-005678",
-    skuCount: 3,
-    totalQty: 5,
-    status: "cancelled",
-    picker: "-",
-    planShipDate: "-",
-    carrier: "-",
-    trackingNo: "-",
-    createdAt: "2024-09-29 10:10",
-  },
-];
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { outboundOrderStatusMap, outboundTypeStatusMap, orderStructureStatusMap } from "../configs/wmsStatusMap";
+import {
+  createPickingWorkFromOutboundOrder,
+  createWaveFromOutboundOrders,
+  listOutboundOrders,
+  setSelectedWaveId,
+  type OutboundOrder,
+} from "../services/mock";
+import { toast } from "sonner";
 
 interface OutboundListPageProps {
   onNavigate?: (path: string) => void;
 }
 
 export default function OutboundListPage({ onNavigate }: OutboundListPageProps) {
+  const [outboundOrders, setOutboundOrders] = useState<OutboundOrder[]>(() => listOutboundOrders());
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [activeStatus, setActiveStatus] = useState("all");
+  const [searchField, setSearchField] = useState("all");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [outboundTypeFilter, setOutboundTypeFilter] = useState("all");
+  const [orderTypeFilter, setOrderTypeFilter] = useState("all");
+  const [waveFilter, setWaveFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("all");
+  const [carrierFilter, setCarrierFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+
+  const statusTabs = [
+    { value: "all", label: "全部", statuses: [] },
+    { value: "pending_wave", label: "待分波", statuses: ["pending"] },
+    { value: "waved", label: "已分波", statuses: ["waved"] },
+    { value: "pending_pick", label: "待拣货", statuses: ["pending_pick"] },
+    { value: "picking", label: "拣货中", statuses: ["picking"] },
+    { value: "pending_review", label: "待复核", statuses: ["pending_review"] },
+    { value: "pending_pack", label: "待打包", statuses: ["pending_pack"] },
+    { value: "pending_weight", label: "待称重", statuses: ["pending_weight"] },
+    { value: "pending_ship", label: "待出库", statuses: ["pending_ship"] },
+    { value: "shipped", label: "已出库", statuses: ["shipped", "completed"] },
+    { value: "exception", label: "异常/取消", statuses: ["exception", "cancelled"] },
+  ];
+
+  const getTabCount = (statuses: string[]) => {
+    if (statuses.length === 0) return outboundOrders.length;
+    return outboundOrders.filter((order) => statuses.includes(order.status)).length;
+  };
+
+  const activeTab = statusTabs.find((tab) => tab.value === activeStatus) ?? statusTabs[0];
+  const filteredOrders =
+    activeTab.statuses.length === 0
+      ? outboundOrders
+      : outboundOrders.filter((order) => activeTab.statuses.includes(order.status));
+  const visibleOrders = filteredOrders.filter((order) => {
+    if (outboundTypeFilter !== "all" && order.outboundType !== outboundTypeFilter) return false;
+    if (orderTypeFilter !== "all" && order.orderType !== orderTypeFilter) return false;
+    if (waveFilter === "waved" && !order.waveNo) return false;
+    if (waveFilter === "not_waved" && order.waveNo) return false;
+    if (customerFilter !== "all" && order.customer !== customerFilter) return false;
+    if (carrierFilter !== "all" && order.carrier !== carrierFilter) return false;
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      const fieldValues: Record<string, string> = {
+        order_no: order.id,
+        wave_no: order.waveNo || "",
+        platform_order: order.orderNo,
+        tracking: order.trackingNo || "",
+        picking_no: order.pickingWorkNo || "",
+        customer: order.customer,
+        picker: order.picker || "",
+        all: [order.id, order.waveNo || "", order.orderNo, order.trackingNo || "", order.pickingWorkNo || "", order.customer, order.picker || "", order.carrier].join(" "),
+      };
+      if (!fieldValues[searchField].toLowerCase().includes(keyword)) return false;
+    }
+    return true;
+  });
 
   const handleSelectAll = () => {
     if (selectedOrders.length === outboundOrders.length) {
@@ -210,8 +112,8 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
     const selected = outboundOrders.filter((order) => selectedOrders.includes(order.id));
     if (selected.length === 0) return null;
     
-    const hasWaved = selected.some((order) => order.waveNo !== "-");
-    const hasNotWaved = selected.some((order) => order.waveNo === "-");
+    const hasWaved = selected.some((order) => order.waveNo);
+    const hasNotWaved = selected.some((order) => !order.waveNo && order.status === "pending");
     
     if (hasWaved && hasNotWaved) return "mixed";
     if (hasWaved) return "waved";
@@ -220,110 +122,37 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
 
   const waveStatus = getSelectedOrdersWaveStatus();
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      pending_wave: { 
-        label: "待分波", 
-        bg: "hsl(40 96% 95%)", 
-        text: "hsl(40 96% 35%)",
-        border: "hsl(40 96% 85%)"
-      },
-      waved: { 
-        label: "已分波", 
-        bg: "hsl(218 92% 95%)", 
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)"
-      },
-      picking: { 
-        label: "拣货中", 
-        bg: "hsl(267 84% 95%)", 
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)"
-      },
-      shipped: { 
-        label: "已发货", 
-        bg: "hsl(142 76% 95%)", 
-        text: "hsl(142 76% 30%)",
-        border: "hsl(142 76% 85%)"
-      },
-      completed: { 
-        label: "已完成", 
-        bg: "hsl(0 0% 95%)", 
-        text: "hsl(0 0% 40%)",
-        border: "hsl(0 0% 85%)"
-      },
-      cancelled: { 
-        label: "已取消", 
-        bg: "hsl(0 0% 95%)", 
-        text: "hsl(0 0% 40%)",
-        border: "hsl(0 0% 85%)"
-      },
-    };
-    const config = statusConfig[status] || statusConfig.pending_wave;
-    return (
-      <Badge 
-        variant="outline"
-        style={{ 
-          backgroundColor: config.bg, 
-          color: config.text,
-          borderColor: config.border
-        }}
-      >
-        {config.label}
-      </Badge>
-    );
-  };
-
-  const getOutboundTypeBadge = (type: string) => {
-    const typeConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
-      sales: { label: "销售出库", variant: "default" },
-      transfer: { label: "调拨出库", variant: "secondary" },
-      return: { label: "退货出库", variant: "outline" },
-      other: { label: "其他出库", variant: "outline" },
-    };
-    const config = typeConfig[type] || typeConfig.other;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const getOrderTypeBadge = (type: string) => {
-    const typeConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      single_single: { 
-        label: "单品单件", 
-        bg: "hsl(218 92% 95%)", 
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)"
-      },
-      single_multi: { 
-        label: "单品多件", 
-        bg: "hsl(267 84% 95%)", 
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)"
-      },
-      multi_mixed: { 
-        label: "多品混合", 
-        bg: "hsl(28 100% 95%)", 
-        text: "hsl(28 100% 35%)",
-        border: "hsl(28 100% 85%)"
-      },
-    };
-    const config = typeConfig[type] || typeConfig.single_single;
-    return (
-      <Badge 
-        variant="outline"
-        style={{ 
-          backgroundColor: config.bg, 
-          color: config.text,
-          borderColor: config.border
-        }}
-      >
-        {config.label}
-      </Badge>
-    );
-  };
 
   const handleNavigate = (path: string) => {
     if (onNavigate) {
       onNavigate(path);
+    }
+  };
+
+  const refreshOrders = () => {
+    setOutboundOrders(listOutboundOrders());
+  };
+
+  const handleCreateWave = (targetOrderIds = selectedOrders) => {
+    const eligibleIds = targetOrderIds.filter((orderId) => {
+      const order = outboundOrders.find((item) => item.id === orderId);
+      return order && !order.waveNo && order.status === "pending";
+    });
+    const wave = createWaveFromOutboundOrders(eligibleIds, { picker: "李四" });
+    if (wave) {
+      refreshOrders();
+      setSelectedOrders([]);
+      toast.success(`已创建波次 ${wave.id}，包含 ${wave.orderCount} 个出库单`);
+    } else {
+      toast.error("请选择待处理且未分波的出库单");
+    }
+  };
+
+  const handleCreateOrderPicking = (order: OutboundOrder) => {
+    const work = createPickingWorkFromOutboundOrder(order.id, { picker: "张三" });
+    if (work) {
+      refreshOrders();
+      toast.success(`已生成按单拣货单 ${work.taskNo}`);
     }
   };
 
@@ -335,47 +164,40 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
     >
       <div className="p-6 space-y-5">
         {/* Status Tabs */}
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList>
-            <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              全部
-            </TabsTrigger>
-            <TabsTrigger value="pending_wave" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              待分波 <Badge variant="secondary">3</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="waved" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              已分波 <Badge variant="secondary">2</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="picking" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              拣货中 <Badge variant="secondary">1</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="shipped" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              已发货 <Badge variant="secondary">1</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="completed" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              已完成
-            </TabsTrigger>
-            <TabsTrigger value="cancelled" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              已取消
-            </TabsTrigger>
+        <Tabs value={activeStatus} onValueChange={setActiveStatus} className="w-full">
+          <TabsList className="h-auto flex-wrap justify-start">
+            {statusTabs.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="group gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                {tab.label}
+                <StatusTabCount count={getTabCount(tab.statuses)} inverseOnActive />
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
 
         {/* Filter Section */}
         <div className="flex items-center gap-3 flex-wrap">
-          <Select>
+          <Select value={searchField} onValueChange={setSearchField}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="出库单号" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">全部字段</SelectItem>
               <SelectItem value="order_no">出库单号</SelectItem>
               <SelectItem value="wave_no">波次号</SelectItem>
               <SelectItem value="platform_order">订单号</SelectItem>
               <SelectItem value="tracking">追踪号</SelectItem>
+              <SelectItem value="picking_no">拣货单号</SelectItem>
+              <SelectItem value="customer">客户</SelectItem>
+              <SelectItem value="picker">拣货员</SelectItem>
             </SelectContent>
           </Select>
-          <Input placeholder="搜索..." className="w-64" />
-          <Select>
+          <Input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} placeholder="搜索出库单、波次、订单、运单、客户..." className="w-80" />
+          <Select value={outboundTypeFilter} onValueChange={setOutboundTypeFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="出库类型" />
             </SelectTrigger>
@@ -387,7 +209,7 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
               <SelectItem value="other">其他出库</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="订单类型" />
             </SelectTrigger>
@@ -398,7 +220,7 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
               <SelectItem value="multi_mixed">多品混合</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={waveFilter} onValueChange={setWaveFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="分波状态" />
             </SelectTrigger>
@@ -408,34 +230,46 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
               <SelectItem value="not_waved">未分波</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={customerFilter} onValueChange={setCustomerFilter}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="客户名称/编号" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部客户</SelectItem>
-              <SelectItem value="amazon_us">Amazon-US</SelectItem>
-              <SelectItem value="shopify_eu">Shopify-EU</SelectItem>
-              <SelectItem value="ebay_uk">eBay-UK</SelectItem>
+              <SelectItem value="Amazon-US">Amazon-US</SelectItem>
+              <SelectItem value="Shopify-EU">Shopify-EU</SelectItem>
+              <SelectItem value="eBay-UK">eBay-UK</SelectItem>
+              <SelectItem value="Walmart-US">Walmart-US</SelectItem>
+              <SelectItem value="深圳仓库">深圳仓库</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={carrierFilter} onValueChange={setCarrierFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="承运商" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
-              <SelectItem value="fedex">FedEx</SelectItem>
-              <SelectItem value="dhl">DHL</SelectItem>
-              <SelectItem value="ups">UPS</SelectItem>
-              <SelectItem value="usps">USPS</SelectItem>
+              <SelectItem value="FedEx">FedEx</SelectItem>
+              <SelectItem value="DHL">DHL</SelectItem>
+              <SelectItem value="UPS">UPS</SelectItem>
+              <SelectItem value="USPS">USPS</SelectItem>
+              <SelectItem value="顺丰">顺丰</SelectItem>
             </SelectContent>
           </Select>
           <Button>
             <Search className="w-4 h-4" />
             搜索
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            setActiveStatus("all");
+            setSearchField("all");
+            setSearchKeyword("");
+            setOutboundTypeFilter("all");
+            setOrderTypeFilter("all");
+            setWaveFilter("all");
+            setCustomerFilter("all");
+            setCarrierFilter("all");
+          }}>
             <Filter className="w-4 h-4" />
             重置
           </Button>
@@ -456,7 +290,7 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
             </div>
             <div className="flex gap-2">
               {waveStatus === "not_waved" && (
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => handleCreateWave()}>
                   <Layers className="w-4 h-4" />
                   批量分波
                 </Button>
@@ -484,7 +318,7 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
           <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+              <DataTableHeaderRow>
                 <TableHead className="w-12">
                   <Checkbox
                     checked={selectedOrders.length === outboundOrders.length}
@@ -506,18 +340,13 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
                 <TableHead>追踪号</TableHead>
                 <TableHead>创建时间</TableHead>
                 <TableHead className="text-right">操作</TableHead>
-              </TableRow>
+              </DataTableHeaderRow>
             </TableHeader>
             <TableBody>
-              {outboundOrders.map((order) => (
+              {visibleOrders.map((order) => (
                 <TableRow
                   key={order.id}
-                  className="hover:bg-table-row-hover transition-colors"
-                  style={{
-                    backgroundColor: selectedOrders.includes(order.id)
-                      ? "var(--table-row-hover)"
-                      : undefined,
-                  }}
+                  className={`hover:bg-table-row-hover transition-colors ${selectedOrders.includes(order.id) ? "bg-table-row-hover" : ""}`}
                 >
                   <TableCell>
                     <Checkbox
@@ -529,15 +358,24 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
                     <a
                       href="#"
                       className="font-mono text-primary hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNavigate("/outbound/detail");
+                      }}
                     >
                       {order.id}
                     </a>
                   </TableCell>
                   <TableCell>
-                    {order.waveNo !== "-" ? (
+                    {order.waveNo ? (
                       <a
                         href="#"
                         className="font-mono text-primary hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedWaveId(order.waveNo);
+                          handleNavigate("/wave/detail");
+                        }}
                       >
                         {order.waveNo}
                       </a>
@@ -545,15 +383,17 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell>{getOutboundTypeBadge(order.outboundType)}</TableCell>
-                  <TableCell>{getOrderTypeBadge(order.orderType)}</TableCell>
+                  <TableCell><StatusBadge {...outboundTypeStatusMap[order.outboundType]} /></TableCell>
+                  <TableCell><StatusBadge {...orderStructureStatusMap[order.orderType]} /></TableCell>
                   <TableCell>{order.customer}</TableCell>
                   <TableCell className="font-mono text-sm">{order.orderNo}</TableCell>
                   <TableCell className="text-center">{order.skuCount}</TableCell>
                   <TableCell className="text-center">{order.totalQty}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell className={order.picker === "-" ? "text-muted-foreground" : ""}>
-                    {order.picker}
+                  <TableCell>
+                    <StatusBadge {...(outboundOrderStatusMap[order.status] ?? outboundOrderStatusMap.pending_wave)} />
+                  </TableCell>
+                  <TableCell className={!order.picker ? "text-muted-foreground" : ""}>
+                    {order.picker || "-"}
                   </TableCell>
                   <TableCell className={order.planShipDate === "-" ? "text-muted-foreground" : ""}>
                     {order.planShipDate}
@@ -562,7 +402,7 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
                     {order.carrier}
                   </TableCell>
                   <TableCell>
-                    {order.trackingNo !== "-" ? (
+                    {order.trackingNo ? (
                       <span className="font-mono text-sm">{order.trackingNo}</span>
                     ) : (
                       <span className="text-muted-foreground">-</span>
@@ -589,11 +429,15 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {order.waveNo === "-" ? (
+                          {!order.waveNo ? (
                             <>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleCreateWave([order.id])}>
                                 <Layers className="w-4 h-4 mr-2" />
                                 手动分波
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleCreateOrderPicking(order)}>
+                                <Package className="w-4 h-4 mr-2" />
+                                按单生成拣货单
                               </DropdownMenuItem>
                               <DropdownMenuItem className="text-error">取消订单</DropdownMenuItem>
                             </>
@@ -621,10 +465,10 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
         {/* Pagination */}
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            共 {outboundOrders.length} 条
+            共 {visibleOrders.length} 条
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"

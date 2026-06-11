@@ -1,6 +1,6 @@
 import "../../styles/globals.css";
 import { useState } from "react";
-import { ArrowLeft, Package, FileText, Clock, AlertCircle, CheckCircle2, Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Package, FileText, Printer } from "lucide-react";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
@@ -10,160 +10,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Progress } from "../components/ui/progress";
 import { ReceiveDialog } from "../components/wms/ReceiveDialog";
 import { CloseInboundDialog } from "../components/wms/CloseInboundDialog";
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { inboundOrderStatusMap, itemProgressStatusMap } from "../configs/wmsStatusMap";
 import { toast } from "sonner";
+import {
+  closeInboundOrder,
+  completeInboundPutawayFromDetail,
+  createPutawayOrderFromReceipt,
+  getInboundDetail,
+  getReceivingStagingLocation,
+  receiveInboundContainer,
+} from "../services/mock";
 
 interface InboundDetailPageProps {
   onNavigate?: (path: string) => void;
   inboundId?: string;
 }
 
-// 模拟数据
-const mockInboundDetail = {
-  id: "IB001042102963",
-  referenceNo: "REF-2024-1028",
-  customer: "ab00-HK买汇",
-  status: "receiving",
-  createdTime: "2024-10-28 09:30:00",
-  createdBy: "张三",
-  estimatedDate: "2024-10-30",
-  actualArrivalDate: "2024-10-28 14:20:00",
-  deliveryMethod: "送货 (顺丰)",
-  tracking: "SF1234567890",
-  note: "紧急入库，优先处理",
-  
-  items: [
-    {
-      sku: "SKU-001",
-      productName: "无线蓝牙耳机",
-      barcode: "6901234567890",
-      spec: "黑色/标准版",
-      plannedQty: 100,
-      receivedQty: 60,
-      shelvedQty: 40,
-    },
-    {
-      sku: "SKU-002",
-      productName: "智能手环",
-      barcode: "6901234567891",
-      spec: "运动版/蓝色",
-      plannedQty: 50,
-      receivedQty: 30,
-      shelvedQty: 20,
-    },
-    {
-      sku: "SKU-003",
-      productName: "充电宝",
-      barcode: "6901234567892",
-      spec: "20000mAh",
-      plannedQty: 80,
-      receivedQty: 0,
-      shelvedQty: 0,
-    },
-  ],
-
-  receiveRecords: [
-    {
-      batchNo: "RCV-20241028-001",
-      container: { containerNo: "PLT-001", containerType: "托盘" },
-      items: [
-        { sku: "SKU-001", productName: "无线蓝牙耳机", qty: 40 },
-        { sku: "SKU-002", productName: "智能手环", qty: 20 },
-      ],
-      receiveTime: "2024-10-28 14:20:00",
-      receiver: "李四",
-      note: "第一批收货",
-    },
-    {
-      batchNo: "RCV-20241028-002",
-      container: { containerNo: "PLT-002", containerType: "托盘" },
-      items: [
-        { sku: "SKU-001", productName: "无线蓝牙耳机", qty: 20 },
-        { sku: "SKU-002", productName: "智能手环", qty: 10 },
-      ],
-      receiveTime: "2024-10-28 15:45:00",
-      receiver: "李四",
-      note: "",
-    },
-  ],
-
-  putawayRecords: [
-    {
-      batchNo: "PUT-20241028-001",
-      containerNo: "PLT-001",
-      sku: "SKU-001",
-      productName: "无线蓝牙耳机",
-      qty: 30,
-      location: "A-01-02-03",
-      putawayTime: "2024-10-28 15:00:00",
-      operator: "王五",
-      note: "",
-    },
-    {
-      batchNo: "PUT-20241028-002",
-      containerNo: "BOX-001",
-      sku: "SKU-002",
-      productName: "智能手环",
-      qty: 20,
-      location: "A-01-02-04",
-      putawayTime: "2024-10-28 15:10:00",
-      operator: "王五",
-      note: "",
-    },
-    {
-      batchNo: "PUT-20241028-003",
-      containerNo: "PLT-001",
-      sku: "SKU-001",
-      productName: "无线蓝牙耳机",
-      qty: 10,
-      location: "A-01-03-01",
-      putawayTime: "2024-10-28 15:30:00",
-      operator: "王五",
-      note: "",
-    },
-  ],
-
-  logs: [
-    {
-      time: "2024-10-28 15:45:00",
-      operator: "李四",
-      action: "收货",
-      detail: "收货批次 RCV-20241028-002，收货数量 30 件",
-    },
-    {
-      time: "2024-10-28 15:30:00",
-      operator: "王五",
-      action: "上架",
-      detail: "上架 SKU-001 × 10 件至 A-01-03-01",
-    },
-    {
-      time: "2024-10-28 15:10:00",
-      operator: "王五",
-      action: "上架",
-      detail: "上架 SKU-002 × 20 件至 A-01-02-04",
-    },
-    {
-      time: "2024-10-28 15:00:00",
-      operator: "王五",
-      action: "上架",
-      detail: "上架 SKU-001 × 30 件至 A-01-02-03",
-    },
-    {
-      time: "2024-10-28 14:20:00",
-      operator: "李四",
-      action: "收货",
-      detail: "收货批次 RCV-20241028-001，收货数量 60 件",
-    },
-    {
-      time: "2024-10-28 09:30:00",
-      operator: "张三",
-      action: "创建",
-      detail: "创建入库单，计划入库 230 件",
-    },
-  ],
-};
-
 export default function InboundDetailPage({ onNavigate, inboundId }: InboundDetailPageProps) {
-  const [detail, setDetail] = useState(mockInboundDetail);
+  const [detail, setDetail] = useState(() => getInboundDetail(inboundId));
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
 
@@ -173,162 +38,67 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<
-      string,
-      { label: string; bg: string; text: string; border: string; icon: any }
-    > = {
-      pending: {
-        label: "待收货",
-        bg: "hsl(40 96% 95%)",
-        text: "hsl(40 96% 35%)",
-        border: "hsl(40 96% 85%)",
-        icon: Clock,
-      },
-      receiving: {
-        label: "收货中",
-        bg: "hsl(218 92% 95%)",
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)",
-        icon: Package,
-      },
-      received: {
-        label: "已收货",
-        bg: "hsl(142 76% 95%)",
-        text: "hsl(142 76% 30%)",
-        border: "hsl(142 76% 85%)",
-        icon: CheckCircle2,
-      },
-      shelved: {
-        label: "已上架",
-        bg: "hsl(267 84% 95%)",
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)",
-        icon: CheckCircle2,
-      },
-      cancelled: {
-        label: "已关闭",
-        bg: "hsl(0 0% 95%)",
-        text: "hsl(0 0% 40%)",
-        border: "hsl(0 0% 85%)",
-        icon: AlertCircle,
-      },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    const Icon = config.icon;
-    return (
-      <Badge
-        variant="outline"
-        style={{
-          backgroundColor: config.bg,
-          color: config.text,
-          borderColor: config.border,
-        }}
-      >
-        <Icon className="w-3.5 h-3.5 mr-1" />
-        {config.label}
-      </Badge>
-    );
-  };
-
   const totalPlanned = detail.items.reduce((sum, item) => sum + item.plannedQty, 0);
   const totalReceived = detail.items.reduce((sum, item) => sum + item.receivedQty, 0);
   const totalShelved = detail.items.reduce((sum, item) => sum + item.shelvedQty, 0);
   const progress = totalPlanned > 0 ? (totalReceived / totalPlanned) * 100 : 0;
 
   const handleReceive = (data: any) => {
-    console.log("收货数据:", data);
-    
-    // 更新收货数量
-    const updatedItems = detail.items.map((item) => {
-      const receiveItem = data.items.find((ri: any) => ri.sku === item.sku);
-      if (receiveItem) {
-        return {
-          ...item,
-          receivedQty: item.receivedQty + receiveItem.currentReceiveQty,
-        };
-      }
-      return item;
-    });
-
-    // 添加收货记录
-    const newReceiveRecord = {
-      batchNo: `RCV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(detail.receiveRecords.length + 1).padStart(3, "0")}`,
-      container: data.container,
-      items: data.items.map((item: any) => ({
-        sku: item.sku,
-        productName: item.productName,
-        qty: item.currentReceiveQty,
-      })),
-      receiveTime: new Date().toLocaleString("zh-CN"),
-      receiver: "当前用户",
-      note: data.note,
-    };
-
-    // 添加操作日志
-    const newLog = {
-      time: new Date().toLocaleString("zh-CN"),
-      operator: "当前用户",
-      action: "收货",
-      detail: `收货批次 ${newReceiveRecord.batchNo}，收货数量 ${data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0)} 件`,
-    };
-
-    setDetail({
-      ...detail,
-      items: updatedItems,
-      receiveRecords: [newReceiveRecord, ...detail.receiveRecords],
-      logs: [newLog, ...detail.logs],
-      status: "receiving",
-      actualArrivalDate: detail.actualArrivalDate || new Date().toLocaleString("zh-CN"),
-    });
-
+    const result = receiveInboundContainer(detail.id, data);
+    const putawayOrder = createPutawayOrderFromReceipt(result.receipt);
+    setDetail(result.detail);
     setReceiveDialogOpen(false);
-    toast.success("收货成功！");
+    toast.success(`收货成功，已生成上架单 ${putawayOrder.putawayNo}`);
   };
 
   const handleClose = (data: { reason: string; note: string }) => {
-    console.log("关闭数据:", data);
-    
-    const newLog = {
-      time: new Date().toLocaleString("zh-CN"),
-      operator: "当前用户",
-      action: "关闭",
-      detail: `关闭原因：${data.reason}${data.note ? `，说明：${data.note}` : ""}`,
-    };
-
-    setDetail({
-      ...detail,
-      status: "cancelled",
-      logs: [newLog, ...detail.logs],
-    });
+    const updatedDetail = closeInboundOrder(detail.id, data.reason, data.note);
+    if (updatedDetail) setDetail(updatedDetail);
 
     setCloseDialogOpen(false);
     toast.success("入库单已关闭");
   };
 
-  const canReceive = detail.status === "pending" || detail.status === "receiving";
+  const handleCompletePutaway = () => {
+    const updatedDetail = completeInboundPutawayFromDetail(detail.id);
+    if (!updatedDetail) {
+      toast.error("上架失败，未找到入库单");
+      return;
+    }
+    setDetail(updatedDetail);
+    toast.success(updatedDetail.status === "shelved" ? "上架完成，列表状态已更新为已上架" : "已记录本次上架");
+  };
+
+  const canReceive = detail.status === "pending" || detail.status === "in_progress";
+  const canPutaway = detail.status !== "cancelled" && totalReceived > totalShelved;
   const canClose = detail.status !== "cancelled" && detail.status !== "shelved";
 
   return (
     <WMSLayout title="入库单详情" currentPath="/inbound/management" onNavigate={handleNavigate}>
       <div className="p-6 space-y-6">
         {/* 顶部操作栏 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
             <Button variant="outline" onClick={() => handleNavigate("/inbound/management")}>
               <ArrowLeft className="w-4 h-4" />
               返回列表
             </Button>
             <div className="flex items-center gap-3">
-              <h1 className="font-mono">{detail.id}</h1>
-              {getStatusBadge(detail.status)}
+              <h1 className="font-mono text-2xl font-semibold tracking-tight">{detail.id}</h1>
+              <StatusBadge {...inboundOrderStatusMap[detail.status]} />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {canReceive && (
               <Button onClick={() => setReceiveDialogOpen(true)}>
                 <Package className="w-4 h-4" />
                 {detail.status === "pending" ? "开始收货" : "继续收货"}
+              </Button>
+            )}
+            {canPutaway && (
+              <Button variant="outline" onClick={handleCompletePutaway}>
+                <CheckCircle2 className="w-4 h-4" />
+                完成上架
               </Button>
             )}
             {canClose && (
@@ -439,20 +209,22 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
         {/* Tab区域 */}
         <Tabs defaultValue="items" className="w-full">
           <TabsList>
-            <TabsTrigger value="items">商品汇总</TabsTrigger>
-            <TabsTrigger value="receive">
+            <TabsTrigger value="items" className="group gap-1">
+              商品汇总
+              <StatusTabCount count={detail.items.length} />
+            </TabsTrigger>
+            <TabsTrigger value="receive" className="group gap-1">
               收货记录
-              <Badge variant="secondary" className="ml-2">
-                {detail.receiveRecords.length}
-              </Badge>
+              <StatusTabCount count={detail.receiveRecords.length} />
             </TabsTrigger>
-            <TabsTrigger value="putaway">
+            <TabsTrigger value="putaway" className="group gap-1">
               上架记录
-              <Badge variant="secondary" className="ml-2">
-                {detail.putawayRecords.length}
-              </Badge>
+              <StatusTabCount count={detail.putawayRecords.length} />
             </TabsTrigger>
-            <TabsTrigger value="logs">操作日志</TabsTrigger>
+            <TabsTrigger value="logs" className="group gap-1">
+              操作日志
+              <StatusTabCount count={detail.logs.length} />
+            </TabsTrigger>
           </TabsList>
 
           {/* 商品汇总 */}
@@ -462,7 +234,7 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
                         <TableHead>条形码</TableHead>
@@ -472,12 +244,18 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
                         <TableHead className="text-right">待收货</TableHead>
                         <TableHead className="text-right">已上架</TableHead>
                         <TableHead>状态</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.items.map((item) => {
                         const remaining = item.plannedQty - item.receivedQty;
                         const receiveProgress = item.plannedQty > 0 ? (item.receivedQty / item.plannedQty) * 100 : 0;
+                        const itemStatusKey =
+                          receiveProgress === 100
+                            ? "receive_completed"
+                            : receiveProgress > 0
+                            ? "receiving"
+                            : "receive_pending";
                         
                         return (
                           <TableRow key={item.sku}>
@@ -502,40 +280,7 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
                               {item.shelvedQty}
                             </TableCell>
                             <TableCell>
-                              {receiveProgress === 100 ? (
-                                <Badge
-                                  variant="outline"
-                                  style={{
-                                    backgroundColor: "hsl(142 76% 95%)",
-                                    color: "hsl(142 76% 30%)",
-                                    borderColor: "hsl(142 76% 85%)",
-                                  }}
-                                >
-                                  已完成
-                                </Badge>
-                              ) : receiveProgress > 0 ? (
-                                <Badge
-                                  variant="outline"
-                                  style={{
-                                    backgroundColor: "hsl(218 92% 95%)",
-                                    color: "hsl(218 92% 35%)",
-                                    borderColor: "hsl(218 92% 85%)",
-                                  }}
-                                >
-                                  收货中
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="outline"
-                                  style={{
-                                    backgroundColor: "hsl(40 96% 95%)",
-                                    color: "hsl(40 96% 35%)",
-                                    borderColor: "hsl(40 96% 85%)",
-                                  }}
-                                >
-                                  待收货
-                                </Badge>
-                              )}
+                              <StatusBadge {...itemProgressStatusMap[itemStatusKey]} />
                             </TableCell>
                           </TableRow>
                         );
@@ -586,11 +331,11 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
                         <div className="border rounded-lg overflow-hidden">
                           <Table>
                             <TableHeader>
-                              <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                              <DataTableHeaderRow>
                                 <TableHead>SKU</TableHead>
                                 <TableHead>商品名称</TableHead>
                                 <TableHead className="text-right">收货数量</TableHead>
-                              </TableRow>
+                              </DataTableHeaderRow>
                             </TableHeader>
                             <TableBody>
                               {record.items.map((item, idx) => (
@@ -628,7 +373,7 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>上架批次号</TableHead>
                         <TableHead>容器编号</TableHead>
                         <TableHead>SKU</TableHead>
@@ -637,7 +382,7 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
                         <TableHead>目标库位</TableHead>
                         <TableHead>上架时间</TableHead>
                         <TableHead>操作人</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.putawayRecords.map((record, index) => (
@@ -712,6 +457,10 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
         inboundId={detail.id}
         items={detail.items}
         onConfirm={handleReceive}
+        stagingLocation={getReceivingStagingLocation({
+          tracking: detail.tracking,
+          deliveryMethod: detail.deliveryMethod,
+        })}
       />
 
       {/* 关闭入库单弹窗 */}

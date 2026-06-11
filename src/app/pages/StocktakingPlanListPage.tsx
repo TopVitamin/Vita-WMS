@@ -23,9 +23,11 @@ import {
 import { Checkbox } from "../components/ui/checkbox";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import {
-  Search, Plus, Filter, RefreshCcw, Download, Upload, Play,
-  CheckCircle, X, Clock, AlertCircle, Package
+  Search, Plus, Filter, RefreshCcw, Download, Upload,
+  CheckCircle, Clock, Play, X, AlertCircle, Package
 } from "lucide-react";
+import { DataTableHeaderRow, StatusBadge } from "../components/business";
+import { stocktakingPlanStatusMap } from "../configs/wmsStatusMap";
 
 interface StocktakingPlanListPageProps {
   onNavigate: (path: string) => void;
@@ -121,8 +123,15 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
   const filteredData = mockStocktakingPlans.filter(item => {
     if (searchKeyword) {
       const keyword = searchKeyword.toLowerCase();
-      if (!item.planNo.toLowerCase().includes(keyword) &&
-          !item.planName.toLowerCase().includes(keyword)) {
+      const searchableText = [
+        item.planNo,
+        item.planName,
+        item.scope,
+        item.supervisor.name,
+        item.creator,
+        item.counters.join(" "),
+      ].join(" ").toLowerCase();
+      if (!searchableText.includes(keyword)) {
         return false;
       }
     }
@@ -146,33 +155,6 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
       setSelectedItems([...selectedItems, id]);
     } else {
       setSelectedItems(selectedItems.filter(item => item !== id));
-    }
-  };
-
-  // 获取状态Badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "待开始":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">待开始</Badge>;
-      case "盘点中":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">
-          <Play className="w-3 h-3 mr-1" />
-          盘点中
-        </Badge>;
-      case "待审核":
-        return <Badge variant="outline" className="bg-info-50 text-info-600 border-info-200">
-          <Clock className="w-3 h-3 mr-1" />
-          待审核
-        </Badge>;
-      case "已完成":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          已完成
-        </Badge>;
-      case "已取消":
-        return <Badge variant="outline" className="bg-error-50 text-error-600 border-error-200">已取消</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -204,9 +186,9 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">待开始</div>
-                  <div className="text-3xl font-medium text-gray-600">{pendingPlans}</div>
+                  <div className="text-3xl font-medium text-muted-foreground">{pendingPlans}</div>
                 </div>
-                <Clock className="w-12 h-12 text-gray-600 opacity-20" />
+                <Clock className="w-12 h-12 text-muted-foreground opacity-20" />
               </div>
             </CardContent>
           </Card>
@@ -245,7 +227,7 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
-                    placeholder="盘点单号 / 盘点名称"
+                    placeholder="盘点单号 / 名称 / 范围 / 负责人 / 创建人"
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     className="pl-9"
@@ -321,13 +303,13 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
 
             {/* 批量操作栏 */}
             {selectedItems.length > 0 && (
-              <div className="mt-4 flex items-center justify-between p-3 bg-primary-50 border border-primary-200 rounded-lg">
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <div className="flex items-center gap-3">
                   <Checkbox
                     checked={true}
                     onCheckedChange={() => setSelectedItems([])}
                   />
-                  <span className="text-sm text-primary-700">
+                  <span className="text-sm text-primary">
                     已选择 <strong>{selectedItems.length}</strong> 项
                   </span>
                 </div>
@@ -348,7 +330,7 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
+                  <DataTableHeaderRow className="bg-muted/50">
                     <TableHead className="w-12">
                       <Checkbox
                         checked={selectedItems.length === filteredData.length && filteredData.length > 0}
@@ -370,7 +352,7 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
                     <TableHead className="w-[140px]">完成时间</TableHead>
                     <TableHead className="w-[100px]">创建人</TableHead>
                     <TableHead className="w-[160px] text-right">操作</TableHead>
-                  </TableRow>
+                  </DataTableHeaderRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.map((item) => {
@@ -384,10 +366,19 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
                           />
                         </TableCell>
                         <TableCell>
-                          <span className="font-mono text-sm">{item.planNo}</span>
+                          <a
+                            href="#"
+                            className="font-mono text-primary hover:underline text-sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onNavigate(`/inventory/stocktaking/${item.id}`);
+                            }}
+                          >
+                            {item.planNo}
+                          </a>
                         </TableCell>
                         <TableCell>
-                          <span className="text-sm font-medium">{item.planName}</span>
+                          <span className="text-sm">{item.planName}</span>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{item.stocktakingType}</Badge>
@@ -399,12 +390,12 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
                           <span className="text-sm">{item.skuCount}个</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.plannedQty.toLocaleString()}件</span>
+                          <span className="text-sm tabular-nums">{item.plannedQty.toLocaleString()}件</span>
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{item.countedQty.toLocaleString()}件</span>
+                              <span className="text-sm tabular-nums">{item.countedQty.toLocaleString()}件</span>
                               <span className="text-xs text-muted-foreground">
                                 ({progress.toFixed(0)}%)
                               </span>
@@ -414,7 +405,7 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
                         </TableCell>
                         <TableCell className="text-right">
                           {item.diffQty !== 0 ? (
-                            <span className={`text-sm font-medium ${item.diffQty > 0 ? 'text-success-600' : 'text-error-600'}`}>
+                            <span className={`text-sm tabular-nums ${item.diffQty > 0 ? 'text-success-600' : 'text-error-600'}`}>
                               {item.diffQty > 0 ? '+' : ''}{item.diffQty}
                             </span>
                           ) : (
@@ -433,7 +424,7 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
                           </div>
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(item.status)}
+                          <StatusBadge {...(stocktakingPlanStatusMap[item.status] ?? { label: item.status, tone: "muted" })} />
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">{item.planStartTime}</span>
@@ -505,7 +496,7 @@ export default function StocktakingPlanListPage({ onNavigate }: StocktakingPlanL
             <CardContent className="py-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
-                  显示 <span className="font-medium">{filteredData.length}</span> 条结果，共 <span className="font-medium">{mockStocktakingPlans.length}</span> 条
+                  显示 {filteredData.length} 条结果，共 {mockStocktakingPlans.length} 条
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled>

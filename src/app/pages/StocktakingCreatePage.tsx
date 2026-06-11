@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -48,8 +49,7 @@ export default function StocktakingCreatePage({ onNavigate }: StocktakingCreateP
   };
 
   const handleSave = () => {
-    console.log("创建盘点计划:", formData);
-    alert("盘点计划创建成功！");
+    toast.success("盘点计划创建成功");
     onNavigate("/inventory/stocktaking");
   };
 

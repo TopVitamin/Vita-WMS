@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -131,15 +132,13 @@ export default function SKUFormPage({ onNavigate, skuId }: SKUFormPageProps) {
 
   // 保存
   const handleSave = () => {
-    console.log("保存SKU:", formData);
-    alert(isEditMode ? `SKU ${formData.skuCode} 已更新` : `新建SKU ${formData.skuCode} 成功`);
+    toast.success(isEditMode ? `SKU ${formData.skuCode} 已更新` : `新建SKU ${formData.skuCode} 成功`);
     onNavigate("/master-data/skus");
   };
 
   // 保存并新增
   const handleSaveAndNew = () => {
-    console.log("保存并新增SKU:", formData);
-    alert(`SKU ${formData.skuCode} 已保存，继续新增下一个`);
+    toast.success(`SKU ${formData.skuCode} 已保存，继续新增下一个`);
     // 重置表单
     window.location.reload();
   };
@@ -796,7 +795,7 @@ export default function SKUFormPage({ onNavigate, skuId }: SKUFormPageProps) {
                   </div>
                 ))}
 
-                <Button variant="outline" className="w-full" onClick={() => alert("打开图片上传对话框")}>
+                <Button variant="outline" className="w-full" onClick={() => toast.info("图片上传功能将在后续接入文件服务")}>
                   <Upload className="w-4 h-4 mr-2" />
                   上传图片
                 </Button>

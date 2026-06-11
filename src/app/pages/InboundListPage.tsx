@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
@@ -20,8 +19,20 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 import { WMSLayout } from "../components/layouts/WMSLayout";
+import { DataTableHeaderRow, DataTableShell, ListPageLayout, StatusBadge, StatusTabCount, StickyActionTableCell, StickyActionTableHead } from "../components/business";
+import { inboundOrderStatusMap } from "../configs/wmsStatusMap";
 import { toast } from "sonner";
 import { ReceiveDialog } from "../components/wms/ReceiveDialog";
+import {
+  createPutawayOrderFromReceipt,
+  getInboundItems,
+  getInboundOrder,
+  getReceivingStagingLocation,
+  listInboundOrders,
+  receiveInboundContainer,
+  setSelectedInboundId,
+  type InboundOrderListItem,
+} from "../services/mock";
 
 // 模拟数据
 const inboundOrders = [
@@ -161,28 +172,59 @@ interface InboundListPageProps {
 }
 
 export default function InboundListPage({ onNavigate }: InboundListPageProps) {
-  const [orders, setOrders] = useState<typeof inboundOrders>(() => {
-    if (typeof window === "undefined") return inboundOrders;
-    const stored = sessionStorage.getItem("wms_mock_inbound_orders");
-    if (stored) {
-      return JSON.parse(stored);
-    }
-    sessionStorage.setItem("wms_mock_inbound_orders", JSON.stringify(inboundOrders));
-    return inboundOrders;
-  });
+  const [orders, setOrders] = useState<InboundOrderListItem[]>(() => listInboundOrders());
 
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [activeStatus, setActiveStatus] = useState("all");
+  const [searchField, setSearchField] = useState("all");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [deliveryMethodFilter, setDeliveryMethodFilter] = useState("all");
+  const [customerFilter, setCustomerFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [receiveDialogOpen, setReceiveDialogOpen] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string>("");
 
+  const statusTabs = [
+    { value: "all", label: "全部", statuses: [] },
+    { value: "pending", label: "待收货", statuses: ["pending"] },
+    { value: "receiving", label: "收货中", statuses: ["in_progress"] },
+    { value: "received", label: "已收货", statuses: ["completed"] },
+    { value: "shelved", label: "已上架", statuses: ["shelved"] },
+    { value: "cancelled", label: "已取消", statuses: ["cancelled"] },
+  ];
+
+  const activeTab = statusTabs.find((tab) => tab.value === activeStatus) ?? statusTabs[0];
+  const getTabCount = (statuses: string[]) => {
+    if (statuses.length === 0) return orders.length;
+    return orders.filter((order) => statuses.includes(order.status)).length;
+  };
+
+  const filteredOrders = orders.filter((order) => {
+    if (activeTab.statuses.length > 0 && !activeTab.statuses.includes(order.status)) return false;
+    if (deliveryMethodFilter !== "all" && order.deliveryMethod !== deliveryMethodFilter) return false;
+    if (customerFilter !== "all" && order.customer !== customerFilter) return false;
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      const fieldValues: Record<string, string> = {
+        order_no: order.id,
+        ref_no: order.referenceNo,
+        tracking: order.tracking,
+        sku: order.skuInfo,
+        customer: order.customer,
+        all: [order.id, order.referenceNo, order.tracking, order.skuInfo, order.customer, order.note].join(" "),
+      };
+      if (!fieldValues[searchField].toLowerCase().includes(keyword)) return false;
+    }
+    return true;
+  });
+
   const handleSelectAll = () => {
-    if (selectedOrders.length === orders.length) {
+    if (selectedOrders.length === filteredOrders.length) {
       setSelectedOrders([]);
     } else {
-      setSelectedOrders(orders.map((order) => order.id));
+      setSelectedOrders(filteredOrders.map((order) => order.id));
     }
   };
 
@@ -193,83 +235,15 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
   };
 
   const handleReceive = (data: any) => {
-    console.log("收货数据:", data);
     const receiveQty = data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0);
-    
-    // 更新本地订单状态
-    const updatedOrders = orders.map((order) => {
-      if (order.id === currentOrderId) {
-        const [current, totalStr] = order.createdQty.split("/");
-        const total = parseInt(totalStr) || 0;
-        const newCreated = Math.min(total, (parseInt(current) || 0) + receiveQty);
-        const newCreatedQty = `${newCreated}/${total}`;
-        
-        // 自动将状态设为已完成
-        const newStatus = newCreated >= total ? "completed" : "in_progress";
-        
-        return {
-          ...order,
-          createdQty: newCreatedQty,
-          status: newStatus,
-          note: data.note ? data.note : order.note,
-        };
-      }
-      return order;
-    });
+    const result = receiveInboundContainer(currentOrderId, data);
+    const putawayOrder = createPutawayOrderFromReceipt(result.receipt);
 
-    setOrders(updatedOrders);
-    sessionStorage.setItem("wms_mock_inbound_orders", JSON.stringify(updatedOrders));
-    
-    toast.success(`收货成功！容器 ${data.container.containerNo}，共 ${receiveQty} 件`);
-    setReceiveDialogOpen(false);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      pending: { 
-        label: "待处理", 
-        bg: "hsl(40 96% 95%)", 
-        text: "hsl(40 96% 35%)",
-        border: "hsl(40 96% 85%)"
-      },
-      in_progress: { 
-        label: "处理中", 
-        bg: "hsl(218 92% 95%)", 
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)"
-      },
-      completed: { 
-        label: "已完成", 
-        bg: "hsl(142 76% 95%)", 
-        text: "hsl(142 76% 30%)",
-        border: "hsl(142 76% 85%)"
-      },
-      shelved: { 
-        label: "已上架", 
-        bg: "hsl(267 84% 95%)", 
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)"
-      },
-      cancelled: { 
-        label: "已取消", 
-        bg: "hsl(0 0% 95%)", 
-        text: "hsl(0 0% 40%)",
-        border: "hsl(0 0% 85%)"
-      },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    return (
-      <Badge 
-        variant="outline"
-        style={{ 
-          backgroundColor: config.bg, 
-          color: config.text,
-          borderColor: config.border
-        }}
-      >
-        {config.label}
-      </Badge>
+    setOrders(result.orders);
+    toast.success(
+      `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，已生成上架单 ${putawayOrder.putawayNo}`
     );
+    setReceiveDialogOpen(false);
   };
 
   const handleNavigate = (path: string) => {
@@ -284,44 +258,35 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
       currentPath="/inbound/management"
       onNavigate={handleNavigate}
     >
-      <div className="p-6 space-y-5">
+      <ListPageLayout>
         {/* Status Tabs */}
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList>
-            <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              全部
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              待入库 <Badge variant="secondary">31</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="receiving" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              收货中 <Badge variant="secondary">245</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="received" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              已收货 <Badge variant="secondary">7810</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="shelved" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              已上架
-            </TabsTrigger>
-            <TabsTrigger value="cancelled" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              已取消
-            </TabsTrigger>
+        <Tabs value={activeStatus} onValueChange={setActiveStatus} className="w-full overflow-x-auto pb-1">
+          <TabsList className="w-max">
+            {statusTabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="group gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                {tab.label}
+                <StatusTabCount count={getTabCount(tab.statuses)} inverseOnActive />
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
 
         {/* Filter Section */}
         <div className="flex items-center gap-3 flex-wrap">
-          <Select>
+          <Select value={searchField} onValueChange={setSearchField}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="入库单号" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">全部字段</SelectItem>
               <SelectItem value="order_no">入库单号</SelectItem>
               <SelectItem value="ref_no">参考单号</SelectItem>
               <SelectItem value="tracking">追踪号</SelectItem>
+              <SelectItem value="sku">SKU/商品</SelectItem>
+              <SelectItem value="customer">客户</SelectItem>
             </SelectContent>
           </Select>
-          <Input placeholder="搜索..." className="w-64" />
+          <Input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} placeholder="搜索入库单、参考单、追踪号、SKU、客户..." className="w-80" />
           <Select>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="创建方式" />
@@ -332,30 +297,37 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
               <SelectItem value="manual">手动创建</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={deliveryMethodFilter} onValueChange={setDeliveryMethodFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="货运方式" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
-              <SelectItem value="express">快递</SelectItem>
-              <SelectItem value="truck">卡车</SelectItem>
+              <SelectItem value="快递">快递</SelectItem>
+              <SelectItem value="卡车">卡车</SelectItem>
+              <SelectItem value="-">未填写</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={customerFilter} onValueChange={setCustomerFilter}>
             <SelectTrigger className="w-40">
               <SelectValue placeholder="客户名称/编号" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部客户</SelectItem>
-              <SelectItem value="customer1">ab00-HK买汇</SelectItem>
+              <SelectItem value="ab00-HK买汇">ab00-HK买汇</SelectItem>
             </SelectContent>
           </Select>
           <Button>
             <Search className="w-4 h-4" />
             搜索
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            setSearchField("all");
+            setSearchKeyword("");
+            setDeliveryMethodFilter("all");
+            setCustomerFilter("all");
+            setActiveStatus("all");
+          }}>
             <Filter className="w-4 h-4" />
             重置
           </Button>
@@ -367,7 +339,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-3">
               <Checkbox
-                checked={selectedOrders.length === orders.length}
+                checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
                 onCheckedChange={handleSelectAll}
               />
               <span className="text-sm text-muted-foreground">
@@ -392,13 +364,14 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
           </div>
 
           {/* Table */}
-          <div className="border rounded-lg overflow-hidden">
-          <Table>
+          <DataTableShell>
+          <div className="overflow-x-auto">
+          <Table className="min-w-[1260px]">
             <TableHeader>
-              <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+              <DataTableHeaderRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedOrders.length === orders.length}
+                    checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
@@ -413,19 +386,14 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
                 <TableHead>预计到货日期</TableHead>
                 <TableHead>客户</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead className="text-right">操作</TableHead>
-              </TableRow>
+                <StickyActionTableHead>操作</StickyActionTableHead>
+              </DataTableHeaderRow>
             </TableHeader>
             <TableBody>
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <TableRow
                   key={order.id}
-                  className="hover:bg-table-row-hover transition-colors"
-                  style={{
-                    backgroundColor: selectedOrders.includes(order.id)
-                      ? "var(--table-row-hover)"
-                      : undefined,
-                  }}
+                  className={`hover:bg-table-row-hover transition-colors ${selectedOrders.includes(order.id) ? "bg-table-row-hover" : ""}`}
                 >
                   <TableCell>
                     <Checkbox
@@ -436,12 +404,13 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
                   <TableCell>
                     <a
                       href="#"
-                      className="font-mono text-primary hover:underline"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleNavigate("/inbound/detail");
-                      }}
-                    >
+                        className="font-mono text-primary hover:underline"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setSelectedInboundId(order.id);
+                          handleNavigate("/inbound/detail");
+                        }}
+                      >
                       {order.id}
                     </a>
                   </TableCell>
@@ -454,13 +423,18 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
                   <TableCell className="text-muted-foreground">{order.deliveryMethod}</TableCell>
                   <TableCell className="text-muted-foreground">{order.estimatedDate}</TableCell>
                   <TableCell>{order.customer}</TableCell>
-                  <TableCell>{getStatusBadge(order.status)}</TableCell>
-                  <TableCell className="text-right">
+                  <TableCell>
+                    <StatusBadge {...(inboundOrderStatusMap[order.status] ?? inboundOrderStatusMap.pending)} />
+                  </TableCell>
+                  <StickyActionTableCell>
                     <div className="flex items-center justify-end gap-2">
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => handleNavigate("/inbound/detail")}
+                        onClick={() => {
+                          setSelectedInboundId(order.id);
+                          handleNavigate("/inbound/detail");
+                        }}
                       >
                         <Eye className="w-4 h-4" />
                         查看
@@ -478,21 +452,22 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
                         收货
                       </Button>
                     </div>
-                  </TableCell>
+                  </StickyActionTableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-        </div>
+          </div>
+          </DataTableShell>
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-muted-foreground">
-            共 {orders.length} 条
+            共 {filteredOrders.length} 条
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -545,7 +520,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
             </div>
           </div>
         </div>
-      </div>
+      </ListPageLayout>
 
       {/* 批量打印提示弹窗 */}
       <AlertDialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
@@ -569,37 +544,14 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
         open={receiveDialogOpen}
         onOpenChange={setReceiveDialogOpen}
         inboundId={currentOrderId}
-        items={mockInboundItems}
+        items={currentOrderId ? getInboundItems(currentOrderId) : []}
         onConfirm={handleReceive}
+        stagingLocation={
+          currentOrderId && getInboundOrder(currentOrderId)
+            ? getReceivingStagingLocation(getInboundOrder(currentOrderId)!)
+            : undefined
+        }
       />
     </WMSLayout>
   );
 }
-
-// 模拟入库单商品数据
-const mockInboundItems = [
-  {
-    sku: "SKU-001",
-    productName: "无线蓝牙耳机",
-    barcode: "6901234567890",
-    spec: "黑色/标准版",
-    plannedQty: 100,
-    receivedQty: 0,
-  },
-  {
-    sku: "SKU-002",
-    productName: "智能手环",
-    barcode: "6901234567891",
-    spec: "运动版/蓝色",
-    plannedQty: 50,
-    receivedQty: 0,
-  },
-  {
-    sku: "SKU-003",
-    productName: "充电宝",
-    barcode: "6901234567892",
-    spec: "20000mAh",
-    plannedQty: 80,
-    receivedQty: 0,
-  },
-];

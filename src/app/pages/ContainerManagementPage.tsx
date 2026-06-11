@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -6,6 +7,8 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow } from "../components/business";
+import { containerCategoryVisualMap } from "../configs/wmsVisualConfig";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { 
   Search, 
@@ -27,10 +30,10 @@ import { EmptyState } from "../components/wms/EmptyState";
 
 // 容器类型枚举（用于UI展示和分类）
 const CONTAINER_CATEGORIES = [
-  { value: "box", label: "周转箱", icon: Box, color: "var(--info-500)" },
-  { value: "pallet", label: "托盘", icon: Package, color: "var(--purple-600)" },
-  { value: "cage", label: "笼车", icon: Cuboid, color: "var(--warning-500)" },
-  { value: "carton", label: "纸箱", icon: Package, color: "var(--success-600)" },
+  { value: "box", label: "周转箱", icon: Box },
+  { value: "pallet", label: "托盘", icon: Package },
+  { value: "cage", label: "笼车", icon: Cuboid },
+  { value: "carton", label: "纸箱", icon: Package },
 ] as const;
 
 interface Container {
@@ -252,12 +255,14 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
   // 按类别统计
   const categoryStats = CONTAINER_CATEGORIES.map(cat => ({
     ...cat,
+    visualColor: containerCategoryVisualMap[cat.value].color,
     count: containers.filter(c => c.category === cat.value).length,
   }));
 
   // 获取容器类别配置
   const getCategoryConfig = (category: string) => {
-    return CONTAINER_CATEGORIES.find(c => c.value === category) || CONTAINER_CATEGORIES[0];
+    const config = CONTAINER_CATEGORIES.find(c => c.value === category) || CONTAINER_CATEGORIES[0];
+    return { ...config, visualColor: containerCategoryVisualMap[config.value].color };
   };
 
   // 打开编辑对话框
@@ -297,7 +302,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
 
   // 处理提交
   const handleSubmit = () => {
-    console.log("提交容器数据:", formData);
+    toast.success(editingContainer ? "容器类型已更新" : "容器类型已创建");
     setIsCreateDialogOpen(false);
     setIsEditDialogOpen(false);
     resetForm();
@@ -361,6 +366,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                       {CONTAINER_CATEGORIES.map((cat) => {
                         const Icon = cat.icon;
                         const isSelected = formData.category === cat.value;
+                        const visual = containerCategoryVisualMap[cat.value];
                         return (
                           <button
                             key={cat.value}
@@ -374,7 +380,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                           >
                             <Icon 
                               className="w-6 h-6" 
-                              style={{ color: isSelected ? cat.color : 'var(--muted-foreground)' }}
+                              style={{ color: isSelected ? visual.color : 'var(--muted-foreground)' }}
                             />
                             <span className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
                               {cat.label}
@@ -601,7 +607,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                     onClick={() => setCategoryFilter(cat.value)}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <Icon className="w-5 h-5" style={{ color: cat.color }} />
+                      <Icon className="w-5 h-5" style={{ color: cat.visualColor }} />
                       <Badge variant="outline">{cat.count}</Badge>
                     </div>
                     <p className="text-sm">{cat.label}</p>
@@ -633,7 +639,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
               </div>
               <div className="space-y-2">
                 <Label>容器类别</Label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant={categoryFilter === "all" ? "default" : "outline"}
                     size="sm"
@@ -643,6 +649,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                   </Button>
                   {CONTAINER_CATEGORIES.map((cat) => {
                     const Icon = cat.icon;
+                    const visual = containerCategoryVisualMap[cat.value];
                     return (
                       <Button
                         key={cat.value}
@@ -690,7 +697,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <DataTableHeaderRow>
                       <TableHead>类型代码</TableHead>
                       <TableHead>容器名称</TableHead>
                       <TableHead className="text-center">类别</TableHead>
@@ -703,7 +710,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                       <TableHead className="text-right">使用中</TableHead>
                       <TableHead>更新时间</TableHead>
                       <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {filteredContainers.map((container) => {
@@ -717,7 +724,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                           <TableCell>{container.containerName}</TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <CategoryIcon className="w-4 h-4" style={{ color: categoryConfig.color }} />
+                              <CategoryIcon className="w-4 h-4" style={{ color: categoryConfig.visualColor }} />
                               <span className="text-sm">{categoryConfig.label}</span>
                             </div>
                           </TableCell>
@@ -726,14 +733,14 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-col items-end">
-                              <span className="font-medium">{formatVolume(container.maxVolume)}</span>
+                              <span className="tabular-nums">{formatVolume(container.maxVolume)}</span>
                               <span className="text-xs text-muted-foreground">
                                 {container.maxVolume.toLocaleString()} cm³
                               </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className="font-medium">{container.maxWeight}</span>
+                            <span className="tabular-nums">{container.maxWeight}</span>
                             <span className="text-muted-foreground text-sm ml-1">kg</span>
                           </TableCell>
                           <TableCell className="text-right">
@@ -752,11 +759,11 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <span className="font-medium">{container.quantityInStock.toLocaleString()}</span>
+                            <span className="tabular-nums">{container.quantityInStock.toLocaleString()}</span>
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex flex-col items-end">
-                              <span className="font-medium">{container.quantityInUse.toLocaleString()}</span>
+                              <span className="tabular-nums">{container.quantityInUse.toLocaleString()}</span>
                               <span className="text-xs text-muted-foreground">
                                 使用率 {utilizationRate}%
                               </span>
@@ -821,6 +828,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                   {CONTAINER_CATEGORIES.map((cat) => {
                     const Icon = cat.icon;
                     const isSelected = formData.category === cat.value;
+                    const visual = containerCategoryVisualMap[cat.value];
                     return (
                       <button
                         key={cat.value}
@@ -834,7 +842,7 @@ export default function ContainerManagementPage({ onNavigate }: ContainerManagem
                       >
                         <Icon 
                           className="w-6 h-6" 
-                          style={{ color: isSelected ? cat.color : 'var(--muted-foreground)' }}
+                          style={{ color: isSelected ? visual.color : 'var(--muted-foreground)' }}
                         />
                         <span className={`text-sm ${isSelected ? 'font-medium' : ''}`}>
                           {cat.label}

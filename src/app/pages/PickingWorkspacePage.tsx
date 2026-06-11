@@ -1,14 +1,15 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent } from "../components/ui/card";
-import { Progress } from "../components/ui/progress";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { QuantityProgress, ScanInputPanel, WorkflowPageLayout, WorkflowStepBar } from "../components/business";
 import {
   ArrowLeft, Package, MapPin, AlertTriangle, Check, SkipForward,
-  Camera, Image as ImageIcon
+  Image as ImageIcon
 } from "lucide-react";
 
 interface PickingWorkspacePageProps {
@@ -57,25 +58,25 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
 
   // 确认拣货
   const handleConfirmPick = () => {
-    alert(`确认拣货：${currentItem.productName}，数量：${inputQty || currentItem.requiredQty}`);
+    toast.success(`确认拣货：${currentItem.productName}，数量：${inputQty || currentItem.requiredQty}`);
     if (currentIndex < pickingItems.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setScannedBarcode("");
       setInputQty("");
     } else {
-      alert("所有商品拣货完成！");
+      toast.success("所有商品拣货完成");
       onNavigate("/picking/tasks");
     }
   };
 
   // 报缺货
   const handleReportShortage = () => {
-    alert(`报告缺货：${currentItem.productName}`);
+    toast.warning(`已报告缺货：${currentItem.productName}`);
   };
 
   // 跳过
   const handleSkip = () => {
-    alert(`跳过当前商品：${currentItem.productName}`);
+    toast.info(`已跳过当前商品：${currentItem.productName}`);
     if (currentIndex < pickingItems.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setScannedBarcode("");
@@ -85,8 +86,26 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
 
   return (
     <WMSLayout title="拣货作业" currentPath="/picking/workspace" onNavigate={onNavigate}>
-      <div className="p-6 max-w-3xl mx-auto space-y-4">
-        {/* 顶部：任务信息 */}
+      <WorkflowPageLayout
+        title="拣货作业"
+        description="按推荐库位逐项扫描、确认数量并处理缺货异常。"
+        actions={
+          <Button variant="outline" onClick={() => onNavigate("/picking/tasks")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            返回
+          </Button>
+        }
+        steps={
+          <WorkflowStepBar
+            currentStepId="pick"
+            steps={[
+              { id: "task", label: "任务", description: "读取拣货单" },
+              { id: "pick", label: "拣货", description: "扫描商品" },
+              { id: "confirm", label: "确认", description: "提交结果" },
+            ]}
+          />
+        }
+      >
         <Card className="bg-primary/5 border-primary/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between mb-4">
@@ -98,20 +117,14 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
                 <div className="text-sm text-muted-foreground">波次号</div>
                 <div className="font-mono text-lg">{taskInfo.waveNo}</div>
               </div>
-              <Button variant="outline" onClick={() => onNavigate("/picking/tasks")}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                返回
-              </Button>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">拣货进度</span>
-                <span className="font-medium">
-                  {taskInfo.pickedItems + currentIndex} / {taskInfo.totalItems} 项
-                  <span className="text-muted-foreground ml-2">({progress.toFixed(0)}%)</span>
-                </span>
-              </div>
-              <Progress value={progress} className="h-2" />
+            <QuantityProgress current={taskInfo.pickedItems + currentIndex} total={taskInfo.totalItems} />
+            <div className="mt-1 flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">拣货进度</span>
+              <span className="font-medium">
+                {taskInfo.pickedItems + currentIndex} / {taskInfo.totalItems} 项
+                <span className="text-muted-foreground ml-2">({progress.toFixed(0)}%)</span>
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -164,7 +177,7 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
                   <MapPin className="w-5 h-5 text-success-600" />
                   <span className="text-sm font-medium text-success-700">推荐库位</span>
                 </div>
-                <div className="font-mono text-4xl font-bold text-success-700 text-center">
+                <div className="text-center font-mono text-4xl font-semibold text-success-700">
                   {currentItem.recommendedLocation}
                 </div>
               </div>
@@ -172,7 +185,7 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
               {/* 应拣数量 */}
               <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
                 <div className="text-sm text-muted-foreground mb-2">应拣数量</div>
-                <div className="text-5xl font-bold text-primary text-center">
+                <div className="text-center text-5xl font-semibold text-primary tabular-nums">
                   {currentItem.requiredQty}
                   <span className="text-2xl font-normal text-muted-foreground ml-3">{currentItem.unit}</span>
                 </div>
@@ -181,29 +194,26 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
 
             {/* 扫描输入框 */}
             <div className="space-y-3">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">扫描商品条码</label>
-                <Input
-                  placeholder="请扫描商品条码进行校验"
-                  value={scannedBarcode}
-                  onChange={(e) => setScannedBarcode(e.target.value)}
-                  className="text-lg h-12"
-                  autoFocus
-                />
-              </div>
+              <ScanInputPanel
+                label="扫描商品条码"
+                placeholder="请扫描商品条码进行校验"
+                value={scannedBarcode}
+                onChange={setScannedBarcode}
+                onEnter={(event) => {
+                  if (event.key === "Enter") handleConfirmPick();
+                }}
+              />
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium">
-                  实际拣货数量（默认：{currentItem.requiredQty} {currentItem.unit}）
-                </label>
-                <Input
-                  type="number"
-                  placeholder={currentItem.requiredQty.toString()}
-                  value={inputQty}
-                  onChange={(e) => setInputQty(e.target.value)}
-                  className="text-lg h-12"
-                />
-              </div>
+              <ScanInputPanel
+                label={`实际拣货数量（默认：${currentItem.requiredQty} ${currentItem.unit}）`}
+                placeholder={currentItem.requiredQty.toString()}
+                type="number"
+                value={inputQty}
+                onChange={setInputQty}
+                onEnter={(event) => {
+                  if (event.key === "Enter") handleConfirmPick();
+                }}
+              />
             </div>
           </CardContent>
         </Card>
@@ -263,7 +273,7 @@ export default function PickingWorkspacePage({ onNavigate }: PickingWorkspacePag
             </div>
           </CardContent>
         </Card>
-      </div>
+      </WorkflowPageLayout>
     </WMSLayout>
   );
 }

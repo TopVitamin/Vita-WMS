@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { WMSLayout } from "../components/layouts/WMSLayout";
-import { ScanInputPanel, WorkflowStepBar } from "../components/business";
+import { DataTableHeaderRow, OperationLogList, QuantityProgress, ScanInputPanel, WorkflowPageLayout, WorkflowStepBar } from "../components/business";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -9,7 +9,6 @@ import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../components/ui/dialog";
-import { Progress } from "../components/ui/progress";
 import { 
   Scan, 
   Package, 
@@ -558,35 +557,37 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
     return currentASN?.items.reduce((sum, item) => sum + item.plannedQty, 0) || 0;
   };
   
-  const getProgress = () => {
-    const total = getTotalPlanned();
-    return total > 0 ? (getTotalScanned() / total) * 100 : 0;
-  };
+  const operationLogs = scanHistory.slice(0, 5).map((record, idx) => ({
+    id: `${record.timestamp}-${idx}`,
+    time: record.timestamp,
+    action: record.success ? "扫描成功" : "扫描异常",
+    detail: `${record.value}${record.success ? `，数量 +${record.qty}` : ""}`,
+  }));
   
   return (
     <WMSLayout title="到仓扫描" currentPath="/inbound/arrival-scan" onNavigate={onNavigate}>
-      <div className="p-6 space-y-6">
-        {/* 步骤指示器 */}
-        <Card>
-          <CardContent className="pt-6">
-            <WorkflowStepBar
-              currentStepId={currentStep}
-              steps={[
-                { id: "asn", label: "定位ASN", description: "扫描单号" },
-                { id: "container", label: "绑定容器", description: "托盘/周转箱" },
-                { id: "location", label: "指定库位", description: "收货位置" },
-                { id: "scan", label: "扫描货物", description: "SKU条码" },
-              ]}
-            />
-          </CardContent>
-        </Card>
+      <WorkflowPageLayout
+        title="到仓扫描"
+        description="按 ASN、容器、库位、SKU 条码推进收货作业。"
+        steps={
+          <WorkflowStepBar
+            currentStepId={currentStep}
+            steps={[
+              { id: "asn", label: "定位ASN", description: "扫描单号" },
+              { id: "container", label: "绑定容器", description: "托盘/周转箱" },
+              { id: "location", label: "指定库位", description: "收货位置" },
+              { id: "scan", label: "扫描货物", description: "SKU条码" },
+            ]}
+          />
+        }
+      >
         
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
           {/* 左侧：扫描操作区 */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 flex flex-col gap-6">
             {/* Step 1: ASN定位 */}
             {currentStep === "asn" && (
-              <Card className="border-primary">
+              <Card className="border-primary flex-1 flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="w-5 h-5" />
@@ -596,7 +597,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                     支持扫描ASN单号、箱号或物流单号
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-4 flex-1 flex flex-col justify-between">
                   <ScanInputPanel
                     label="扫描或输入单号"
                     value={asnInput}
@@ -606,7 +607,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                     placeholder="按 Enter 确认"
                   />
                   
-                  <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
+                  <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1 mt-auto">
                     <p className="text-muted-foreground">提示：</p>
                     <p>• 扫描ASN单号（如：ASN-2024-001）</p>
                     <p>• 扫描物流单号（如：SF1234567890）</p>
@@ -705,7 +706,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                   </div>
                   
                   <div className="p-3 bg-info/10 border border-info/20 rounded-lg text-sm">
-                    <p className="text-info-foreground">
+                    <p className="text-info-700">
                       默认使用收货暂存区，后续可在上架时调整
                     </p>
                   </div>
@@ -831,35 +832,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                       <CardTitle className="text-base">扫描历史（最近5条）</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2">
-                        {scanHistory.slice(0, 5).map((record, idx) => (
-                          <div 
-                            key={idx}
-                            className={`flex items-center justify-between text-sm p-2 rounded ${
-                              record.success ? "bg-success/10" : "bg-destructive/10"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              {record.success ? (
-                                <CheckCircle2 className="w-4 h-4 text-success" />
-                              ) : (
-                                <AlertCircle className="w-4 h-4 text-destructive" />
-                              )}
-                              <span className="font-mono">{record.value}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {record.success && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{record.qty}
-                                </Badge>
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {record.timestamp}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <OperationLogList logs={operationLogs} />
                     </CardContent>
                   </Card>
                 )}
@@ -918,19 +891,13 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>整体进度</span>
-                      <span>{getProgress().toFixed(1)}%</span>
-                    </div>
-                    <Progress value={getProgress()} />
-                  </div>
+                  <QuantityProgress current={getTotalScanned()} total={getTotalPlanned()} />
                   
                   {/* ASN明细表格 */}
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                        <DataTableHeaderRow>
                           <TableHead>SKU</TableHead>
                           <TableHead>产品名称</TableHead>
                           <TableHead>规格</TableHead>
@@ -938,7 +905,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                           <TableHead className="text-right">已扫描</TableHead>
                           <TableHead className="text-right">待收货</TableHead>
                           <TableHead className="text-center">状态</TableHead>
-                        </TableRow>
+                        </DataTableHeaderRow>
                       </TableHeader>
                       <TableBody>
                         {currentASN.items.map((item) => {
@@ -1009,12 +976,12 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                   <div className="border rounded-lg overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                        <DataTableHeaderRow>
                           <TableHead>SKU</TableHead>
                           <TableHead>产品名称</TableHead>
                           <TableHead className="text-right">数量</TableHead>
                           <TableHead>扫描时间</TableHead>
-                        </TableRow>
+                        </DataTableHeaderRow>
                       </TableHeader>
                       <TableBody>
                         {currentContainer.scannedItems.map((item, idx) => (
@@ -1125,7 +1092,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
             </CardContent>
           </Card>
         )}
-      </div>
+      </WorkflowPageLayout>
       
       {/* 确认收货对话框 */}
       <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
@@ -1168,7 +1135,7 @@ export default function ArrivalScanPage({ onNavigate }: ArrivalScanPageProps) {
                 ))}
               </div>
               
-              <div className="p-3 bg-info/10 border border-info/20 rounded-lg text-sm text-info-foreground">
+              <div className="rounded-lg border border-info/20 bg-info/10 p-3 text-sm text-info-700">
                 确认后将扣减ASN待收数量，增加库存
               </div>
             </div>

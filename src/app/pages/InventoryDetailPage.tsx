@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "../components/ui/table";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { DataTableHeaderRow, StatusBadge } from "../components/business";
+import { inventoryDetailStatusMap, transactionTypeStatusMap } from "../configs/wmsStatusMap";
 import {
   ArrowLeft, Package, MapPin, Layers, Activity, AlertTriangle,
   Lock, TrendingUp, Download, RefreshCcw, Snowflake, Clock
@@ -261,43 +263,6 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
   const qualityCheckStock = 20;
   const safetyStock = 500;
 
-  // 获取库存状态Badge
-  const getStockStatusBadge = (status: string) => {
-    switch (status) {
-      case "正常":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">正常</Badge>;
-      case "冻结":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">
-          <Snowflake className="w-3 h-3 mr-1" />
-          冻结
-        </Badge>;
-      case "待检":
-        return <Badge variant="outline" className="bg-info-50 text-info-600 border-info-200">待检</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  // 获取交易类型Badge
-  const getTransactionTypeBadge = (type: string) => {
-    switch (type) {
-      case "入库":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">入库</Badge>;
-      case "出库":
-        return <Badge variant="outline" className="bg-error-50 text-error-600 border-error-200">出库</Badge>;
-      case "移库":
-        return <Badge variant="outline" className="bg-info-50 text-info-600 border-info-200">移库</Badge>;
-      case "冻结":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">冻结</Badge>;
-      case "解冻":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">解冻</Badge>;
-      case "调整":
-        return <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300">调整</Badge>;
-      default:
-        return <Badge variant="outline">{type}</Badge>;
-    }
-  };
-
   return (
     <WMSLayout title="库存明细" currentPath="/inventory/query" onNavigate={onNavigate}>
       <div className="p-6 space-y-4">
@@ -428,22 +393,10 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
         {/* Tab内容 */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="location">
-              <MapPin className="w-4 h-4 mr-2" />
-              库位分布
-            </TabsTrigger>
-            <TabsTrigger value="batch">
-              <Layers className="w-4 h-4 mr-2" />
-              批次分布
-            </TabsTrigger>
-            <TabsTrigger value="transaction">
-              <Activity className="w-4 h-4 mr-2" />
-              库存流水
-            </TabsTrigger>
-            <TabsTrigger value="alert">
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              预警信息
-            </TabsTrigger>
+            <TabsTrigger value="location">库位分布</TabsTrigger>
+            <TabsTrigger value="batch">批次分布</TabsTrigger>
+            <TabsTrigger value="transaction">库存流水</TabsTrigger>
+            <TabsTrigger value="alert">预警信息</TabsTrigger>
           </TabsList>
 
           {/* Tab 1: 库位分布 */}
@@ -452,7 +405,7 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <DataTableHeaderRow className="bg-muted/50">
                       <TableHead className="w-[100px]">库区</TableHead>
                       <TableHead className="w-[120px]">库位</TableHead>
                       <TableHead className="w-[140px]">批次号</TableHead>
@@ -461,7 +414,7 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                       <TableHead className="w-[140px]">上架时间</TableHead>
                       <TableHead className="w-[80px]">库龄</TableHead>
                       <TableHead className="w-[160px] text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {mockLocationData.map((item) => (
@@ -476,10 +429,10 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                           <span className="font-mono text-sm">{item.batchNo}</span>
                         </TableCell>
                         <TableCell>
-                          {getStockStatusBadge(item.stockStatus)}
+                          <StatusBadge {...inventoryDetailStatusMap[item.stockStatus]} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.quantity.toLocaleString()}</span>
+                          <span className="text-sm tabular-nums">{item.quantity.toLocaleString()}</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">{item.putawayTime}</span>
@@ -521,7 +474,7 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <DataTableHeaderRow className="bg-muted/50">
                       <TableHead className="w-[140px]">批次号</TableHead>
                       <TableHead className="w-[120px]">生产日期</TableHead>
                       <TableHead className="w-[120px]">到期日期</TableHead>
@@ -530,7 +483,7 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                       <TableHead className="w-[100px]">状态</TableHead>
                       <TableHead className="w-[120px]">剩余保质期</TableHead>
                       <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {mockBatchData.map((item) => (
@@ -545,13 +498,13 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                           <span className="text-sm">{item.expiryDate}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.quantity.toLocaleString()}</span>
+                          <span className="text-sm tabular-nums">{item.quantity.toLocaleString()}</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{item.locationCount}个库位</span>
                         </TableCell>
                         <TableCell>
-                          {getStockStatusBadge(item.status)}
+                          <StatusBadge {...inventoryDetailStatusMap[item.status]} />
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-success-600">{item.remainingDays}天</span>
@@ -577,7 +530,7 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <DataTableHeaderRow className="bg-muted/50">
                       <TableHead className="w-[100px]">交易类型</TableHead>
                       <TableHead className="w-[140px]">关联单号</TableHead>
                       <TableHead className="w-[140px]">批次号</TableHead>
@@ -587,13 +540,13 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                       <TableHead className="w-[100px]">操作人</TableHead>
                       <TableHead className="w-[140px]">操作时间</TableHead>
                       <TableHead className="w-[180px]">备注</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {mockTransactionData.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          {getTransactionTypeBadge(item.transactionType)}
+                          <StatusBadge {...transactionTypeStatusMap[item.transactionType]} />
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-sm">{item.referenceNo}</span>
@@ -605,12 +558,12 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                           <span className="font-mono text-sm">{item.location}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`text-sm font-medium ${item.changeQty > 0 ? 'text-success-600' : item.changeQty < 0 ? 'text-error-600' : 'text-muted-foreground'}`}>
+                          <span className={`text-sm tabular-nums ${item.changeQty > 0 ? 'text-success-600' : item.changeQty < 0 ? 'text-error-600' : 'text-muted-foreground'}`}>
                             {item.changeQty > 0 ? '+' : ''}{item.changeQty}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.afterQty.toLocaleString()}</span>
+                          <span className="text-sm tabular-nums">{item.afterQty.toLocaleString()}</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{item.operator}</span>
@@ -640,14 +593,14 @@ export default function InventoryDetailPage({ onNavigate, skuCode = "ABC-123456"
                         <AlertTriangle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="outline" className="bg-warning-100 text-warning-700 border-warning-300">
+                            <Badge variant="outline" className="border-warning-200 bg-warning-100 text-warning-700">
                               {alert.type}
                             </Badge>
-                            <Badge variant="outline" className="bg-warning-100 text-warning-700 border-warning-300">
+                            <Badge variant="outline" className="border-warning-200 bg-warning-100 text-warning-700">
                               {alert.level}
                             </Badge>
                           </div>
-                          <p className="text-sm text-warning-900 mb-2">{alert.message}</p>
+                          <p className="mb-2 text-sm text-warning-700">{alert.message}</p>
                           <div className="flex items-center gap-2 text-xs text-warning-700">
                             <Clock className="w-3 h-3" />
                             {alert.createTime}

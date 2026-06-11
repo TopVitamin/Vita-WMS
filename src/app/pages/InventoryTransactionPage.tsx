@@ -7,11 +7,15 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow, StatusBadge, ListPageLayout, PageHeader } from "../components/business";
+import { inventoryDocumentTypeStatusMap } from "../configs/wmsStatusMap";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { Card, CardContent } from "../components/ui/card";
+import { listInventoryTransactions, setSelectedInboundId, type InventoryTransaction } from "../services/mock";
 
 // 模拟数据 - 商品维度流水
 const productTransactionData = [
@@ -301,28 +305,50 @@ interface InventoryTransactionPageProps {
 export default function InventoryTransactionPage({ onNavigate }: InventoryTransactionPageProps) {
   const [activeTab, setActiveTab] = useState("product");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [batchKeyword, setBatchKeyword] = useState("");
+  const [locationKeyword, setLocationKeyword] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("all");
+  const [warehouseFilter, setWarehouseFilter] = useState("all");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const inventoryTransactions = listInventoryTransactions();
 
   // 根据当前Tab选择数据
   const getCurrentData = () => {
     switch (activeTab) {
       case "product":
-        return productTransactionData;
+        return inventoryTransactions.length > 0 ? inventoryTransactions : productTransactionData;
       case "detailed":
-        return detailedTransactionData;
+        return inventoryTransactions.length > 0 ? inventoryTransactions : detailedTransactionData;
       default:
-        return productTransactionData;
+        return inventoryTransactions.length > 0 ? inventoryTransactions : productTransactionData;
     }
   };
 
   const currentData = getCurrentData();
+  const filteredData = currentData.filter((item: any) => {
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      const searchable = [item.sku, item.productName, item.documentNo, item.customer, item.operator]
+        .join(" ")
+        .toLowerCase();
+      if (!searchable.includes(keyword)) return false;
+    }
+    if (batchKeyword.trim() && !(item.batchNo || "").toLowerCase().includes(batchKeyword.trim().toLowerCase())) return false;
+    if (locationKeyword.trim() && !(item.location || "").toLowerCase().includes(locationKeyword.trim().toLowerCase())) return false;
+    if (customerFilter !== "all" && item.customer !== customerFilter) return false;
+    if (warehouseFilter !== "all" && item.warehouse !== warehouseFilter) return false;
+    if (documentTypeFilter !== "all" && item.documentType !== documentTypeFilter) return false;
+    return true;
+  });
 
   const handleSelectAll = () => {
-    if (selectedItems.length === currentData.length) {
+    if (selectedItems.length === filteredData.length) {
       setSelectedItems([]);
     } else {
-      setSelectedItems(currentData.map((_, index) => `${activeTab}-${index}`));
+      setSelectedItems(filteredData.map((_, index) => `${activeTab}-${index}`));
     }
   };
 
@@ -337,20 +363,6 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
     if (onNavigate) {
       onNavigate(path);
     }
-  };
-
-  // 获取单据类型Badge样式
-  const getDocumentTypeBadge = (type: string) => {
-    const styles: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", className: string }> = {
-      "入库单": { variant: "outline", className: "border-success-500 text-success-700 bg-success-50" },
-      "出库单": { variant: "outline", className: "border-warning-500 text-warning-700 bg-warning-50" },
-      "库存锁定": { variant: "outline", className: "border-gray-400 text-gray-700 bg-gray-50" },
-      "库存解锁": { variant: "outline", className: "border-info-500 text-info-700 bg-info-50" },
-      "库存冻结": { variant: "outline", className: "border-error-400 text-error-700 bg-error-50" },
-      "盘点调整": { variant: "outline", className: "border-purple-500 text-purple-700 bg-purple-50" },
-      "调拨单": { variant: "outline", className: "border-blue-500 text-blue-700 bg-blue-50" },
-    };
-    return styles[type] || { variant: "outline" as const, className: "" };
   };
 
   // 渲染库存变动明细
@@ -384,10 +396,10 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
   const renderProductTransactionTable = () => (
     <Table>
       <TableHeader>
-        <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+        <DataTableHeaderRow>
           <TableHead className="w-12">
             <Checkbox
-              checked={selectedItems.length === currentData.length}
+              checked={selectedItems.length === filteredData.length && filteredData.length > 0}
               onCheckedChange={handleSelectAll}
             />
           </TableHead>
@@ -402,20 +414,13 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
           <TableHead>操作时间</TableHead>
           <TableHead>操作人</TableHead>
           <TableHead className="text-right">操作</TableHead>
-        </TableRow>
+        </DataTableHeaderRow>
       </TableHeader>
       <TableBody>
-        {currentData.map((item: any, index) => {
-          const docTypeBadge = getDocumentTypeBadge(item.documentType);
-          return (
+        {filteredData.map((item: InventoryTransaction, index) => (
             <TableRow
               key={`product-${index}`}
-              className="hover:bg-table-row-hover transition-colors"
-              style={{
-                backgroundColor: selectedItems.includes(`${activeTab}-${index}`)
-                  ? "var(--table-row-hover)"
-                  : undefined,
-              }}
+              className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`${activeTab}-${index}`) ? "bg-table-row-hover" : ""}`}
             >
               <TableCell>
                 <Checkbox
@@ -431,18 +436,50 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
                 />
               </TableCell>
               <TableCell>
-                <code className="text-sm font-mono text-primary">{item.sku}</code>
+                <a
+                  href="#"
+                  className="font-mono text-primary hover:underline text-sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavigate(`/inventory/detail/${item.sku}`);
+                  }}
+                >
+                  {item.sku}
+                </a>
               </TableCell>
               <TableCell>{item.productName}</TableCell>
               <TableCell>{item.customer}</TableCell>
               <TableCell className="text-muted-foreground">{item.warehouse}</TableCell>
               <TableCell>
-                <Badge variant={docTypeBadge.variant} className={docTypeBadge.className}>
-                  {item.documentType}
-                </Badge>
+                <StatusBadge {...inventoryDocumentTypeStatusMap[item.documentType]} />
               </TableCell>
               <TableCell>
-                <code className="text-sm font-mono text-muted-foreground">{item.documentNo}</code>
+                {item.documentNo.startsWith("IB") ? (
+                  <a
+                    href="#"
+                    className="font-mono text-primary hover:underline text-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedInboundId(item.documentNo);
+                      handleNavigate("/inbound/detail");
+                    }}
+                  >
+                    {item.documentNo}
+                  </a>
+                ) : item.documentNo.startsWith("OB") ? (
+                  <a
+                    href="#"
+                    className="font-mono text-primary hover:underline text-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavigate("/outbound/detail");
+                    }}
+                  >
+                    {item.documentNo}
+                  </a>
+                ) : (
+                  <code className="text-sm font-mono text-muted-foreground">{item.documentNo}</code>
+                )}
               </TableCell>
               <TableCell>
                 {renderInventoryChangeDetail(item.inventoryChange)}
@@ -455,8 +492,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
                 </Button>
               </TableCell>
             </TableRow>
-          );
-        })}
+        ))}
       </TableBody>
     </Table>
   );
@@ -465,10 +501,10 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
   const renderDetailedTransactionTable = () => (
     <Table>
       <TableHeader>
-        <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+        <DataTableHeaderRow>
           <TableHead className="w-12">
             <Checkbox
-              checked={selectedItems.length === currentData.length}
+              checked={selectedItems.length === filteredData.length && filteredData.length > 0}
               onCheckedChange={handleSelectAll}
             />
           </TableHead>
@@ -485,20 +521,13 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
           <TableHead>操作时间</TableHead>
           <TableHead>操作人</TableHead>
           <TableHead className="text-right">操作</TableHead>
-        </TableRow>
+        </DataTableHeaderRow>
       </TableHeader>
       <TableBody>
-        {currentData.map((item: any, index) => {
-          const docTypeBadge = getDocumentTypeBadge(item.documentType);
-          return (
+        {filteredData.map((item: InventoryTransaction, index) => (
             <TableRow
               key={`detailed-${index}`}
-              className="hover:bg-table-row-hover transition-colors"
-              style={{
-                backgroundColor: selectedItems.includes(`${activeTab}-${index}`)
-                  ? "var(--table-row-hover)"
-                  : undefined,
-              }}
+              className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`${activeTab}-${index}`) ? "bg-table-row-hover" : ""}`}
             >
               <TableCell>
                 <Checkbox
@@ -514,7 +543,16 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
                 />
               </TableCell>
               <TableCell>
-                <code className="text-sm font-mono text-primary">{item.sku}</code>
+                <a
+                  href="#"
+                  className="font-mono text-primary hover:underline text-sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleNavigate(`/inventory/detail/${item.sku}`);
+                  }}
+                >
+                  {item.sku}
+                </a>
               </TableCell>
               <TableCell>{item.productName}</TableCell>
               <TableCell>{item.customer}</TableCell>
@@ -535,12 +573,35 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant={docTypeBadge.variant} className={docTypeBadge.className}>
-                  {item.documentType}
-                </Badge>
+                <StatusBadge {...inventoryDocumentTypeStatusMap[item.documentType]} />
               </TableCell>
               <TableCell>
-                <code className="text-sm font-mono text-muted-foreground">{item.documentNo}</code>
+                {item.documentNo.startsWith("IB") ? (
+                  <a
+                    href="#"
+                    className="font-mono text-primary hover:underline text-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setSelectedInboundId(item.documentNo);
+                      handleNavigate("/inbound/detail");
+                    }}
+                  >
+                    {item.documentNo}
+                  </a>
+                ) : item.documentNo.startsWith("OB") ? (
+                  <a
+                    href="#"
+                    className="font-mono text-primary hover:underline text-sm"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleNavigate("/outbound/detail");
+                    }}
+                  >
+                    {item.documentNo}
+                  </a>
+                ) : (
+                  <code className="text-sm font-mono text-muted-foreground">{item.documentNo}</code>
+                )}
               </TableCell>
               <TableCell>
                 {renderInventoryChangeDetail(item.inventoryChange)}
@@ -553,8 +614,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
                 </Button>
               </TableCell>
             </TableRow>
-          );
-        })}
+        ))}
       </TableBody>
     </Table>
   );
@@ -565,104 +625,110 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
       case "product":
         return (
           <>
-            <Input placeholder="搜索SKU编号/产品名称..." className="w-64" />
-            <Select>
+            <Input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} placeholder="SKU / 产品 / 单据号 / 客户 / 操作人" className="w-72" />
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="客户名称" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部客户</SelectItem>
-                <SelectItem value="amazon-us">Amazon-US</SelectItem>
-                <SelectItem value="ebay-uk">eBay-UK</SelectItem>
-                <SelectItem value="walmart-ca">Walmart-CA</SelectItem>
-                <SelectItem value="amazon-eu">Amazon-EU</SelectItem>
+                <SelectItem value="维他很忙">维他很忙</SelectItem>
+                <SelectItem value="Amazon-US">Amazon-US</SelectItem>
+                <SelectItem value="eBay-UK">eBay-UK</SelectItem>
+                <SelectItem value="Walmart-CA">Walmart-CA</SelectItem>
+                <SelectItem value="Amazon-EU">Amazon-EU</SelectItem>
               </SelectContent>
             </Select>
-            <Select>
+            <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="仓库" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部仓库</SelectItem>
-                <SelectItem value="la">洛杉矶仓</SelectItem>
-                <SelectItem value="london">伦敦仓</SelectItem>
-                <SelectItem value="toronto">多伦多仓</SelectItem>
-                <SelectItem value="frankfurt">法兰克福仓</SelectItem>
+                <SelectItem value="洛杉矶仓">洛杉矶仓</SelectItem>
+                <SelectItem value="伦敦仓">伦敦仓</SelectItem>
+                <SelectItem value="多伦多仓">多伦多仓</SelectItem>
+                <SelectItem value="法兰克福仓">法兰克福仓</SelectItem>
               </SelectContent>
             </Select>
-            <Select>
+            <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="单据类型" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部类型</SelectItem>
-                <SelectItem value="inbound">入库单</SelectItem>
-                <SelectItem value="outbound">出库单</SelectItem>
-                <SelectItem value="lock">库存锁定</SelectItem>
-                <SelectItem value="unlock">库存解锁</SelectItem>
-                <SelectItem value="freeze">库存冻结</SelectItem>
-                <SelectItem value="count">盘点调整</SelectItem>
-                <SelectItem value="transfer">调拨单</SelectItem>
+                <SelectItem value="入库单">入库单</SelectItem>
+                <SelectItem value="出库单">出库单</SelectItem>
+                <SelectItem value="库存锁定">库存锁定</SelectItem>
+                <SelectItem value="库存解锁">库存解锁</SelectItem>
+                <SelectItem value="库存冻结">库存冻结</SelectItem>
+                <SelectItem value="库存调整">库存调整</SelectItem>
+                <SelectItem value="盘点调整">盘点调整</SelectItem>
+                <SelectItem value="调拨单">调拨单</SelectItem>
+                <SelectItem value="补货单">补货单</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
               <Calendar className="w-4 h-4 text-muted-foreground" />
-              <Input type="date" placeholder="开始日期" className="w-40" />
+              <Input type="date" placeholder="开始日期" className="min-w-0 flex-1 sm:w-40 sm:flex-none" />
               <span className="text-muted-foreground">至</span>
-              <Input type="date" placeholder="结束日期" className="w-40" />
+              <Input type="date" placeholder="结束日期" className="min-w-0 flex-1 sm:w-40 sm:flex-none" />
             </div>
           </>
         );
       case "detailed":
         return (
           <>
-            <Input placeholder="搜索SKU编号/产品名称..." className="w-64" />
-            <Input placeholder="批次号..." className="w-48" />
-            <Input placeholder="库位编号..." className="w-40" />
-            <Select>
+            <Input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} placeholder="SKU / 产品 / 单据号 / 操作人" className="w-72" />
+            <Input value={batchKeyword} onChange={(event) => setBatchKeyword(event.target.value)} placeholder="批次号..." className="w-48" />
+            <Input value={locationKeyword} onChange={(event) => setLocationKeyword(event.target.value)} placeholder="库位编号..." className="w-40" />
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="客户名称" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部客户</SelectItem>
-                <SelectItem value="amazon-us">Amazon-US</SelectItem>
-                <SelectItem value="ebay-uk">eBay-UK</SelectItem>
-                <SelectItem value="walmart-ca">Walmart-CA</SelectItem>
-                <SelectItem value="amazon-eu">Amazon-EU</SelectItem>
+                <SelectItem value="维他很忙">维他很忙</SelectItem>
+                <SelectItem value="Amazon-US">Amazon-US</SelectItem>
+                <SelectItem value="eBay-UK">eBay-UK</SelectItem>
+                <SelectItem value="Walmart-CA">Walmart-CA</SelectItem>
+                <SelectItem value="Amazon-EU">Amazon-EU</SelectItem>
               </SelectContent>
             </Select>
-            <Select>
+            <Select value={warehouseFilter} onValueChange={setWarehouseFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="仓库" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部仓库</SelectItem>
-                <SelectItem value="la">洛杉矶仓</SelectItem>
-                <SelectItem value="london">伦敦仓</SelectItem>
-                <SelectItem value="toronto">多伦多仓</SelectItem>
-                <SelectItem value="frankfurt">法兰克福仓</SelectItem>
+                <SelectItem value="洛杉矶仓">洛杉矶仓</SelectItem>
+                <SelectItem value="伦敦仓">伦敦仓</SelectItem>
+                <SelectItem value="多伦多仓">多伦多仓</SelectItem>
+                <SelectItem value="法兰克福仓">法兰克福仓</SelectItem>
               </SelectContent>
             </Select>
-            <Select>
+            <Select value={documentTypeFilter} onValueChange={setDocumentTypeFilter}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="单据类型" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部类型</SelectItem>
-                <SelectItem value="inbound">入库单</SelectItem>
-                <SelectItem value="outbound">出库单</SelectItem>
-                <SelectItem value="lock">库存锁定</SelectItem>
-                <SelectItem value="unlock">库存解锁</SelectItem>
-                <SelectItem value="freeze">库存冻结</SelectItem>
-                <SelectItem value="count">盘点调整</SelectItem>
-                <SelectItem value="transfer">调拨单</SelectItem>
+                <SelectItem value="入库单">入库单</SelectItem>
+                <SelectItem value="出库单">出库单</SelectItem>
+                <SelectItem value="库存锁定">库存锁定</SelectItem>
+                <SelectItem value="库存解锁">库存解锁</SelectItem>
+                <SelectItem value="库存冻结">库存冻结</SelectItem>
+                <SelectItem value="库存调整">库存调整</SelectItem>
+                <SelectItem value="盘点调整">盘点调整</SelectItem>
+                <SelectItem value="调拨单">调拨单</SelectItem>
+                <SelectItem value="补货单">补货单</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap">
               <Calendar className="w-4 h-4 text-muted-foreground" />
-              <Input type="date" placeholder="开始日期" className="w-40" />
+              <Input type="date" placeholder="开始日期" className="min-w-0 flex-1 sm:w-40 sm:flex-none" />
               <span className="text-muted-foreground">至</span>
-              <Input type="date" placeholder="结束日期" className="w-40" />
+              <Input type="date" placeholder="结束日期" className="min-w-0 flex-1 sm:w-40 sm:flex-none" />
             </div>
           </>
         );
@@ -673,42 +739,56 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
 
   return (
     <WMSLayout title="库存流水查询" currentPath="/inventory/transaction" onNavigate={handleNavigate}>
-      <div className="p-6 space-y-6">
-        {/* 页面标题和操作区 */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2>库存流水查询</h2>
-            <p className="text-muted-foreground mt-1">
-              查询和追溯库存变动记录，支持按商品汇总和明细追溯两种维度
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline">
-              <Download className="w-4 h-4 mr-2" />
-              导出流水
-            </Button>
-          </div>
-        </div>
-
-        {/* Tab切换和内容 */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="product">按商品维度</TabsTrigger>
-            <TabsTrigger value="detailed">按商品-批次-库位维度</TabsTrigger>
+      <ListPageLayout
+        header={
+          <PageHeader
+            title="库存流水查询"
+            description="查询和追溯库存变动记录，支持按商品汇总和明细追溯两种维度"
+            actions={
+              <Button variant="outline" onClick={() => toast.success("已生成流水导出任务")}>
+                <Download className="w-4 h-4 mr-2" />
+                导出流水
+              </Button>
+            }
+          />
+        }
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full space-y-4">
+          <TabsList className="w-max">
+            <TabsTrigger value="product" className="group gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              按商品维度
+            </TabsTrigger>
+            <TabsTrigger value="detailed" className="group gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              按商品-批次-库位维度
+            </TabsTrigger>
           </TabsList>
 
           {/* 筛选区域 */}
-          <div className="mt-6 p-4 bg-card rounded-lg border">
-            <div className="flex items-center gap-3 flex-wrap">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              {renderFilters()}
-              <Button>
-                <Search className="w-4 h-4 mr-2" />
-                查询
-              </Button>
-              <Button variant="outline">重置</Button>
-            </div>
-          </div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 flex-wrap">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                {renderFilters()}
+                <Button onClick={() => toast.success("查询成功")}>
+                  <Search className="w-4 h-4 mr-2" />
+                  查询
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchKeyword("");
+                    setBatchKeyword("");
+                    setLocationKeyword("");
+                    setCustomerFilter("all");
+                    setWarehouseFilter("all");
+                    setDocumentTypeFilter("all");
+                  }}
+                >
+                  重置
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* 批量操作栏 */}
           {selectedItems.length > 0 && (
@@ -717,7 +797,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
                 已选择 <span className="text-primary">{selectedItems.length}</span> 条记录
               </span>
               <div className="flex gap-2 ml-auto">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => toast.success("已生成导出任务")}>
                   <Download className="w-4 h-4 mr-2" />
                   导出选中
                 </Button>
@@ -733,7 +813,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
           )}
 
           {/* 商品维度Tab */}
-          <TabsContent value="product" className="mt-6 space-y-4">
+          <TabsContent value="product" className="mt-4 space-y-4 outline-none">
             <div className="rounded-lg border bg-card overflow-hidden">
               {renderProductTransactionTable()}
             </div>
@@ -741,7 +821,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
             {/* 分页 */}
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                共 {productTransactionData.length} 条记录
+                  共 {filteredData.length} 条记录
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -772,7 +852,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
           </TabsContent>
 
           {/* 商品-批次-库位维度Tab */}
-          <TabsContent value="detailed" className="mt-6 space-y-4">
+          <TabsContent value="detailed" className="mt-4 space-y-4 outline-none">
             <div className="rounded-lg border bg-card overflow-hidden">
               {renderDetailedTransactionTable()}
             </div>
@@ -780,7 +860,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
             {/* 分页 */}
             <div className="flex items-center justify-between">
               <div className="text-sm text-muted-foreground">
-                共 {detailedTransactionData.length} 条记录
+                共 {filteredData.length} 条记录
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
@@ -810,7 +890,7 @@ export default function InventoryTransactionPage({ onNavigate }: InventoryTransa
             </div>
           </TabsContent>
         </Tabs>
-      </div>
+      </ListPageLayout>
     </WMSLayout>
   );
 }

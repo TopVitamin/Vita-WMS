@@ -6,9 +6,21 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { wavePickStatusMap, waveStatusMap, orderStructureStatusMap } from "../configs/wmsStatusMap";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Progress } from "../components/ui/progress";
 import { toast } from "sonner";
+import {
+  completePickingWorkByWave,
+  completeWaveOrder,
+  completeWaveSorting,
+  createPickingWorkFromWave,
+  getWaveOrder,
+  startPickingWorkByWave,
+  startWaveSorting,
+  type WaveOrder,
+} from "../services/mock";
 
 interface WaveDetailPageProps {
   onNavigate?: (path: string) => void;
@@ -351,8 +363,28 @@ const mockWaveDetail = {
   ],
 };
 
+function mergeWaveDetail(wave?: WaveOrder) {
+  if (!wave) return mockWaveDetail;
+
+  return {
+    ...mockWaveDetail,
+    id: wave.id,
+    waveType: wave.waveType,
+    status: wave.status,
+    createdTime: wave.createdAt,
+    createdBy: wave.createdBy,
+    picker: wave.picker || "-",
+    orderCount: wave.orderCount,
+    skuCount: wave.skuCount,
+    totalQty: wave.totalQty,
+    pickedQty: wave.pickedQty,
+    pendingQty: Math.max(wave.totalQty - wave.pickedQty, 0),
+  };
+}
+
 export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPageProps) {
-  const [detail, setDetail] = useState(mockWaveDetail);
+  const [waveOrder, setWaveOrder] = useState(() => getWaveOrder(waveId));
+  const [detail, setDetail] = useState(() => mergeWaveDetail(getWaveOrder(waveId)));
 
   const handleNavigate = (path: string) => {
     if (onNavigate) {
@@ -360,104 +392,56 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<
-      string,
-      { label: string; bg: string; text: string; border: string; icon: any }
-    > = {
-      pending: {
-        label: "待拣货",
-        bg: "hsl(40 96% 95%)",
-        text: "hsl(40 96% 35%)",
-        border: "hsl(40 96% 85%)",
-        icon: Clock,
-      },
-      picking: {
-        label: "拣货中",
-        bg: "hsl(267 84% 95%)",
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)",
-        icon: Package,
-      },
-      picked: {
-        label: "已拣货",
-        bg: "hsl(142 76% 95%)",
-        text: "hsl(142 76% 30%)",
-        border: "hsl(142 76% 85%)",
-        icon: CheckCircle2,
-      },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    const Icon = config.icon;
-    return (
-      <Badge
-        variant="outline"
-        style={{
-          backgroundColor: config.bg,
-          color: config.text,
-          borderColor: config.border,
-        }}
-      >
-        <Icon className="w-3.5 h-3.5 mr-1" />
-        {config.label}
-      </Badge>
-    );
-  };
-
-  const getWaveTypeBadge = (type: string) => {
-    const typeConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      single_single: {
-        label: "单品单件",
-        bg: "hsl(218 92% 95%)",
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)",
-      },
-      single_multi: {
-        label: "单品多件",
-        bg: "hsl(267 84% 95%)",
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)",
-      },
-      multi_mixed: {
-        label: "多品混合",
-        bg: "hsl(28 100% 95%)",
-        text: "hsl(28 100% 35%)",
-        border: "hsl(28 100% 85%)",
-      },
-    };
-    const config = typeConfig[type] || typeConfig.single_single;
-    return (
-      <Badge
-        variant="outline"
-        style={{
-          backgroundColor: config.bg,
-          color: config.text,
-          borderColor: config.border,
-        }}
-      >
-        {config.label}
-      </Badge>
-    );
+  const syncWaveDetail = (wave?: WaveOrder) => {
+    if (!wave) return;
+    setWaveOrder(wave);
+    setDetail(mergeWaveDetail(wave));
   };
 
   const pickProgress = detail.totalQty > 0 ? (detail.pickedQty / detail.totalQty) * 100 : 0;
   const orderProgress = detail.outboundOrders.filter((o) => o.pickStatus === "picked").length;
 
-  const canAssignPicker = detail.status === "pending";
-  const canStartPicking = detail.status === "pending" && detail.picker !== "-";
-  const canCompletePicking = detail.status === "picking" && detail.pendingQty === 0;
+  const canAssignPicker = detail.status === "created" || detail.status === "pending";
+  const canStartPicking = ["created", "assigned", "pending"].includes(detail.status);
+  const canCompletePicking = detail.status === "picking";
+  const canStartSorting = detail.status === "picked" && waveOrder?.sortingMode !== "none";
+  const canCompleteSorting = detail.status === "sorting";
+  const canCompleteWave = detail.status === "sorted" || (detail.status === "picked" && waveOrder?.sortingMode === "none");
 
   const handleAssignPicker = () => {
-    toast.success("拣货员已指定");
+    const work = createPickingWorkFromWave(detail.id, { picker: detail.picker === "-" ? "李四" : detail.picker });
+    syncWaveDetail(getWaveOrder(detail.id));
+    toast.success(work ? `拣货员已指定，拣货单 ${work.taskNo} 已生成` : "拣货员已指定");
   };
 
   const handleStartPicking = () => {
-    setDetail({
-      ...detail,
-      status: "picking",
-      pickStartTime: new Date().toLocaleString("zh-CN"),
-    });
-    toast.success("开始拣货");
+    const result = startPickingWorkByWave(detail.id);
+    syncWaveDetail(result.wave);
+    toast.success(`波次 ${detail.id} 已开始拣货`);
+  };
+
+  const handleCompletePicking = () => {
+    const result = completePickingWorkByWave(detail.id);
+    syncWaveDetail(result.wave);
+    toast.success(`波次 ${detail.id} 已完成拣货，出库单已进入${result.wave?.sortingMode === "none" ? "待复核" : "待分拣"}`);
+  };
+
+  const handleStartSorting = () => {
+    const wave = startWaveSorting(detail.id);
+    syncWaveDetail(wave);
+    toast.success(`波次 ${detail.id} 已开始分拣`);
+  };
+
+  const handleCompleteSorting = () => {
+    const wave = completeWaveSorting(detail.id);
+    syncWaveDetail(wave);
+    toast.success(`波次 ${detail.id} 已完成分拣，出库单已进入待复核`);
+  };
+
+  const handleCompleteWave = () => {
+    const wave = completeWaveOrder(detail.id);
+    syncWaveDetail(wave);
+    toast.success(`波次 ${detail.id} 已完成`);
   };
 
   return (
@@ -471,8 +455,8 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
               返回列表
             </Button>
             <div className="flex items-center gap-3">
-              <h1 className="font-mono">{detail.id}</h1>
-              {getStatusBadge(detail.status)}
+              <h1 className="font-mono text-2xl font-semibold tracking-tight">{detail.id}</h1>
+              <StatusBadge {...(waveStatusMap[detail.status] ?? waveStatusMap.pending)} />
             </div>
           </div>
           <div className="flex gap-2">
@@ -489,7 +473,25 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
               </Button>
             )}
             {canCompletePicking && (
-              <Button>
+              <Button onClick={handleCompletePicking}>
+                <CheckCircle2 className="w-4 h-4" />
+                完成拣货
+              </Button>
+            )}
+            {canStartSorting && (
+              <Button variant="outline" onClick={handleStartSorting}>
+                <Package className="w-4 h-4" />
+                开始分拣
+              </Button>
+            )}
+            {canCompleteSorting && (
+              <Button onClick={handleCompleteSorting}>
+                <CheckCircle2 className="w-4 h-4" />
+                完成分拣
+              </Button>
+            )}
+            {canCompleteWave && (
+              <Button onClick={handleCompleteWave}>
                 <CheckCircle2 className="w-4 h-4" />
                 完成波次
               </Button>
@@ -521,7 +523,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">波次类型</div>
-                        <div>{getWaveTypeBadge(detail.waveType)}</div>
+                        <div><StatusBadge {...orderStructureStatusMap[detail.waveType]} /></div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">创建时间</div>
@@ -662,21 +664,26 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
         {/* Tab区域 */}
         <Tabs defaultValue="orders" className="w-full">
           <TabsList>
-            <TabsTrigger value="orders">
+            <TabsTrigger value="orders" className="group gap-1">
               出库单明细
-              <Badge variant="secondary" className="ml-2">
-                {detail.outboundOrders.length}
-              </Badge>
+              <StatusTabCount count={detail.outboundOrders.length} />
             </TabsTrigger>
-            <TabsTrigger value="skus">商品汇总</TabsTrigger>
-            <TabsTrigger value="picking">
+            <TabsTrigger value="skus" className="group gap-1">
+              商品汇总
+              <StatusTabCount count={detail.skuSummary.length} />
+            </TabsTrigger>
+            <TabsTrigger value="picking" className="group gap-1">
               拣货记录
-              <Badge variant="secondary" className="ml-2">
-                {detail.pickingRecords.length}
-              </Badge>
+              <StatusTabCount count={detail.pickingRecords.length} />
             </TabsTrigger>
-            <TabsTrigger value="allocation">库存分配明细</TabsTrigger>
-            <TabsTrigger value="logs">操作日志</TabsTrigger>
+            <TabsTrigger value="allocation" className="group gap-1">
+              库存分配明细
+              <StatusTabCount count={detail.allocationRecords.length} />
+            </TabsTrigger>
+            <TabsTrigger value="logs" className="group gap-1">
+              操作日志
+              <StatusTabCount count={detail.logs.length} />
+            </TabsTrigger>
           </TabsList>
 
           {/* 出库单明细 */}
@@ -686,7 +693,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>序号</TableHead>
                         <TableHead>出库单号</TableHead>
                         <TableHead>客户名称</TableHead>
@@ -699,52 +706,10 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                         <TableHead>承运商</TableHead>
                         <TableHead>物流渠道</TableHead>
                         <TableHead>创建时间</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.outboundOrders.map((order, index) => {
-                        let statusBadge;
-                        if (order.pickStatus === "picked") {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(142 76% 95%)",
-                                color: "hsl(142 76% 30%)",
-                                borderColor: "hsl(142 76% 85%)",
-                              }}
-                            >
-                              已拣货
-                            </Badge>
-                          );
-                        } else if (order.pickStatus === "picking") {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(267 84% 95%)",
-                                color: "hsl(267 84% 35%)",
-                                borderColor: "hsl(267 84% 85%)",
-                              }}
-                            >
-                              拣货中
-                            </Badge>
-                          );
-                        } else {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(40 96% 95%)",
-                                color: "hsl(40 96% 35%)",
-                                borderColor: "hsl(40 96% 85%)",
-                              }}
-                            >
-                              待拣货
-                            </Badge>
-                          );
-                        }
-
                         return (
                           <TableRow key={order.id}>
                             <TableCell>{index + 1}</TableCell>
@@ -764,8 +729,10 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                             <TableCell className="font-mono text-sm">{order.orderNo}</TableCell>
                             <TableCell className="text-center">{order.skuCount}</TableCell>
                             <TableCell className="text-center">{order.totalQty}</TableCell>
-                            <TableCell>{getWaveTypeBadge(order.orderType)}</TableCell>
-                            <TableCell>{statusBadge}</TableCell>
+                            <TableCell><StatusBadge {...orderStructureStatusMap[order.orderType]} /></TableCell>
+                            <TableCell>
+                              <StatusBadge {...wavePickStatusMap[order.pickStatus]} />
+                            </TableCell>
                             <TableCell className="text-center">
                               <span className={order.pickedQty > 0 ? "text-success-600" : ""}>
                                 {order.pickedQty}
@@ -792,7 +759,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
                         <TableHead>条形码</TableHead>
@@ -802,52 +769,10 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                         <TableHead className="text-right">待拣货数量</TableHead>
                         <TableHead>分配库位</TableHead>
                         <TableHead>状态</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.skuSummary.map((item) => {
-                        let statusBadge;
-                        if (item.status === "picked") {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(142 76% 95%)",
-                                color: "hsl(142 76% 30%)",
-                                borderColor: "hsl(142 76% 85%)",
-                              }}
-                            >
-                              已拣货
-                            </Badge>
-                          );
-                        } else if (item.status === "picking") {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(267 84% 95%)",
-                                color: "hsl(267 84% 35%)",
-                                borderColor: "hsl(267 84% 85%)",
-                              }}
-                            >
-                              拣货中
-                            </Badge>
-                          );
-                        } else {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(40 96% 95%)",
-                                color: "hsl(40 96% 35%)",
-                                borderColor: "hsl(40 96% 85%)",
-                              }}
-                            >
-                              待拣货
-                            </Badge>
-                          );
-                        }
-
                         return (
                           <TableRow key={item.sku}>
                             <TableCell>
@@ -876,7 +801,9 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                                 ))}
                               </div>
                             </TableCell>
-                            <TableCell>{statusBadge}</TableCell>
+                            <TableCell>
+                              <StatusBadge {...wavePickStatusMap[item.status]} />
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -925,7 +852,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                           <div className="border rounded-lg overflow-hidden">
                             <Table>
                               <TableHeader>
-                                <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                                <DataTableHeaderRow>
                                   <TableHead>出库单号</TableHead>
                                   <TableHead>SKU</TableHead>
                                   <TableHead>商品名称</TableHead>
@@ -933,7 +860,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                                   <TableHead className="text-right">实际拣货</TableHead>
                                   <TableHead className="text-right">缺货数量</TableHead>
                                   <TableHead>源库位</TableHead>
-                                </TableRow>
+                                </DataTableHeaderRow>
                               </TableHeader>
                               <TableBody>
                                 {record.items.map((item, idx) => (
@@ -996,7 +923,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>出库单号</TableHead>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
@@ -1006,7 +933,7 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
                         <TableHead>批次号/序列号</TableHead>
                         <TableHead>分配时间</TableHead>
                         <TableHead>分配策略</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.allocationRecords.map((record, index) => (

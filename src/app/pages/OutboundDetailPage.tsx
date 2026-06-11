@@ -6,6 +6,8 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { outboundItemProgressStatusMap, outboundOrderStatusMap, outboundTypeStatusMap, orderStructureStatusMap } from "../configs/wmsStatusMap";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Progress } from "../components/ui/progress";
 import { toast } from "sonner";
@@ -240,117 +242,6 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<
-      string,
-      { label: string; bg: string; text: string; border: string; icon: any }
-    > = {
-      pending_wave: {
-        label: "待分波",
-        bg: "hsl(40 96% 95%)",
-        text: "hsl(40 96% 35%)",
-        border: "hsl(40 96% 85%)",
-        icon: Clock,
-      },
-      waved: {
-        label: "已分波",
-        bg: "hsl(218 92% 95%)",
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)",
-        icon: Package,
-      },
-      picking: {
-        label: "拣货中",
-        bg: "hsl(267 84% 95%)",
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)",
-        icon: Package,
-      },
-      shipped: {
-        label: "已发货",
-        bg: "hsl(142 76% 95%)",
-        text: "hsl(142 76% 30%)",
-        border: "hsl(142 76% 85%)",
-        icon: Truck,
-      },
-      completed: {
-        label: "已完成",
-        bg: "hsl(0 0% 95%)",
-        text: "hsl(0 0% 40%)",
-        border: "hsl(0 0% 85%)",
-        icon: CheckCircle2,
-      },
-      cancelled: {
-        label: "已取消",
-        bg: "hsl(0 0% 95%)",
-        text: "hsl(0 0% 40%)",
-        border: "hsl(0 0% 85%)",
-        icon: AlertCircle,
-      },
-    };
-    const config = statusConfig[status] || statusConfig.pending_wave;
-    const Icon = config.icon;
-    return (
-      <Badge
-        variant="outline"
-        style={{
-          backgroundColor: config.bg,
-          color: config.text,
-          borderColor: config.border,
-        }}
-      >
-        <Icon className="w-3.5 h-3.5 mr-1" />
-        {config.label}
-      </Badge>
-    );
-  };
-
-  const getOutboundTypeBadge = (type: string) => {
-    const typeConfig: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
-      sales: { label: "销售出库", variant: "default" },
-      transfer: { label: "调拨出库", variant: "secondary" },
-      return: { label: "退货出库", variant: "outline" },
-      other: { label: "其他出库", variant: "outline" },
-    };
-    const config = typeConfig[type] || typeConfig.other;
-    return <Badge variant={config.variant}>{config.label}</Badge>;
-  };
-
-  const getOrderTypeBadge = (type: string) => {
-    const typeConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      single_single: {
-        label: "单品单件",
-        bg: "hsl(218 92% 95%)",
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)",
-      },
-      single_multi: {
-        label: "单品多件",
-        bg: "hsl(267 84% 95%)",
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)",
-      },
-      multi_mixed: {
-        label: "多品混合",
-        bg: "hsl(28 100% 95%)",
-        text: "hsl(28 100% 35%)",
-        border: "hsl(28 100% 85%)",
-      },
-    };
-    const config = typeConfig[type] || typeConfig.single_single;
-    return (
-      <Badge
-        variant="outline"
-        style={{
-          backgroundColor: config.bg,
-          color: config.text,
-          borderColor: config.border,
-        }}
-      >
-        {config.label}
-      </Badge>
-    );
-  };
 
   const totalPlanned = detail.items.reduce((sum, item) => sum + item.plannedQty, 0);
   const totalAllocated = detail.items.reduce((sum, item) => sum + item.allocatedQty, 0);
@@ -389,18 +280,18 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
     <WMSLayout title="出库单详情" currentPath="/outbound/management" onNavigate={handleNavigate}>
       <div className="p-6 space-y-6">
         {/* 顶部操作栏 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
             <Button variant="outline" onClick={() => handleNavigate("/outbound/management")}>
               <ArrowLeft className="w-4 h-4" />
               返回列表
             </Button>
             <div className="flex items-center gap-3">
-              <h1 className="font-mono">{detail.id}</h1>
-              {getStatusBadge(detail.status)}
+              <h1 className="font-mono text-2xl font-semibold tracking-tight">{detail.id}</h1>
+              <StatusBadge {...outboundOrderStatusMap[detail.status]} />
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline">
               <Printer className="w-4 h-4" />
               打印出库单
@@ -453,11 +344,11 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">出库类型</div>
-                        <div>{getOutboundTypeBadge(detail.outboundType)}</div>
+                        <div><StatusBadge {...outboundTypeStatusMap[detail.outboundType]} /></div>
                       </div>
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">订单类型</div>
-                        <div>{getOrderTypeBadge(detail.orderType)}</div>
+                        <div><StatusBadge {...orderStructureStatusMap[detail.orderType]} /></div>
                       </div>
                     </div>
                     <div className="space-y-3">
@@ -606,26 +497,26 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
         {/* Tab区域 */}
         <Tabs defaultValue="items" className="w-full">
           <TabsList>
-            <TabsTrigger value="items">商品明细</TabsTrigger>
-            <TabsTrigger value="allocation">
+            <TabsTrigger value="items" className="group gap-1">
+              商品明细
+              <StatusTabCount count={detail.items.length} />
+            </TabsTrigger>
+            <TabsTrigger value="allocation" className="group gap-1">
               分配记录
-              <Badge variant="secondary" className="ml-2">
-                {detail.allocationRecords.length}
-              </Badge>
+              <StatusTabCount count={detail.allocationRecords.length} />
             </TabsTrigger>
-            <TabsTrigger value="picking">
+            <TabsTrigger value="picking" className="group gap-1">
               拣货记录
-              <Badge variant="secondary" className="ml-2">
-                {detail.pickingRecords.length}
-              </Badge>
+              <StatusTabCount count={detail.pickingRecords.length} />
             </TabsTrigger>
-            <TabsTrigger value="packing">
+            <TabsTrigger value="packing" className="group gap-1">
               装箱记录
-              <Badge variant="secondary" className="ml-2">
-                {detail.packingRecords.length}
-              </Badge>
+              <StatusTabCount count={detail.packingRecords.length} />
             </TabsTrigger>
-            <TabsTrigger value="logs">操作日志</TabsTrigger>
+            <TabsTrigger value="logs" className="group gap-1">
+              操作日志
+              <StatusTabCount count={detail.logs.length} />
+            </TabsTrigger>
           </TabsList>
 
           {/* 商品明细 */}
@@ -635,7 +526,7 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
                         <TableHead>条形码</TableHead>
@@ -646,7 +537,7 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                         <TableHead className="text-right">待拣货</TableHead>
                         <TableHead className="text-right">已发货</TableHead>
                         <TableHead>状态</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.items.map((item) => {
@@ -654,73 +545,16 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                         const pickProgress =
                           item.plannedQty > 0 ? (item.pickedQty / item.plannedQty) * 100 : 0;
 
-                        let statusBadge;
-                        if (item.shippedQty >= item.plannedQty) {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(142 76% 95%)",
-                                color: "hsl(142 76% 30%)",
-                                borderColor: "hsl(142 76% 85%)",
-                              }}
-                            >
-                              已发货
-                            </Badge>
-                          );
-                        } else if (pickProgress === 100) {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(267 84% 95%)",
-                                color: "hsl(267 84% 35%)",
-                                borderColor: "hsl(267 84% 85%)",
-                              }}
-                            >
-                              已拣货
-                            </Badge>
-                          );
-                        } else if (pickProgress > 0) {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(218 92% 95%)",
-                                color: "hsl(218 92% 35%)",
-                                borderColor: "hsl(218 92% 85%)",
-                              }}
-                            >
-                              拣货中
-                            </Badge>
-                          );
-                        } else if (item.allocatedQty > 0) {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(218 92% 95%)",
-                                color: "hsl(218 92% 35%)",
-                                borderColor: "hsl(218 92% 85%)",
-                              }}
-                            >
-                              已分配
-                            </Badge>
-                          );
-                        } else {
-                          statusBadge = (
-                            <Badge
-                              variant="outline"
-                              style={{
-                                backgroundColor: "hsl(40 96% 95%)",
-                                color: "hsl(40 96% 35%)",
-                                borderColor: "hsl(40 96% 85%)",
-                              }}
-                            >
-                              待分配
-                            </Badge>
-                          );
-                        }
+                        const statusKey =
+                          item.shippedQty >= item.plannedQty
+                            ? "shipped"
+                            : pickProgress === 100
+                            ? "picked"
+                            : pickProgress > 0
+                            ? "picking"
+                            : item.allocatedQty > 0
+                            ? "allocated"
+                            : "pending";
 
                         return (
                           <TableRow key={item.sku}>
@@ -743,7 +577,9 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                             </TableCell>
                             <TableCell className="text-right">{remaining}</TableCell>
                             <TableCell className="text-right">{item.shippedQty}</TableCell>
-                            <TableCell>{statusBadge}</TableCell>
+                            <TableCell>
+                              <StatusBadge {...outboundItemProgressStatusMap[statusKey]} />
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -761,7 +597,7 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead>分配批次号</TableHead>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
@@ -771,7 +607,7 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                         <TableHead>批次号/序列号</TableHead>
                         <TableHead>分配时间</TableHead>
                         <TableHead>分配人</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {detail.allocationRecords.map((record, index) => (
@@ -848,14 +684,14 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                           <div className="border rounded-lg overflow-hidden">
                             <Table>
                               <TableHeader>
-                                <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                                <DataTableHeaderRow>
                                   <TableHead>SKU</TableHead>
                                   <TableHead>商品名称</TableHead>
                                   <TableHead className="text-right">计划拣货</TableHead>
                                   <TableHead className="text-right">实际拣货</TableHead>
                                   <TableHead className="text-right">缺货数量</TableHead>
                                   <TableHead>源库位</TableHead>
-                                </TableRow>
+                                </DataTableHeaderRow>
                               </TableHeader>
                               <TableBody>
                                 {record.items.map((item, idx) => (
@@ -941,11 +777,11 @@ export default function OutboundDetailPage({ onNavigate, outboundId }: OutboundD
                           <div className="border rounded-lg overflow-hidden">
                             <Table>
                               <TableHeader>
-                                <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                                <DataTableHeaderRow>
                                   <TableHead>SKU</TableHead>
                                   <TableHead>商品名称</TableHead>
                                   <TableHead className="text-right">数量</TableHead>
-                                </TableRow>
+                                </DataTableHeaderRow>
                               </TableHeader>
                               <TableBody>
                                 {record.items.map((item, idx) => (

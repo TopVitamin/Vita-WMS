@@ -145,14 +145,14 @@ z-index: var(--z-tooltip); /* 1600 - 提示框 */
 #### 字号系统
 
 ```css
-/* 字号层级 - 专为信息密集型设计（注：受 14px 根字号影响，实际渲染变小）*/
---text-xs: 0.75rem;      /* 实际渲染 10.5px - 次要标签、辅助文字 */
---text-sm: 0.875rem;     /* 实际渲染 12.25px - 小号文字、表格内容 */
---text-base: 0.875rem;   /* 实际渲染 12.25px - 基础字号（默认）*/
---text-lg: 1rem;         /* 实际渲染 14px - 卡片标题、表单标签 */
---text-xl: 1.25rem;      /* 实际渲染 17.5px - 页面副标题 */
---text-2xl: 1.5rem;      /* 实际渲染 21px - 页面主标题 */
---text-3xl: 1.875rem;    /* 实际渲染 26.25px - 特大标题、数据大屏 */
+/* 16px 根字号下的标准 B 端字号层级 */
+--text-xs: 0.75rem;      /* 12px - 次要标签、辅助文字 */
+--text-sm: 0.875rem;     /* 14px - 正文、表格、按钮 */
+--text-base: 0.875rem;   /* 14px - 后台默认正文 */
+--text-lg: 1rem;         /* 16px - 卡片和区块标题 */
+--text-xl: 1.25rem;      /* 20px - 页面副标题 */
+--text-2xl: 1.5rem;      /* 24px - 页面主标题 */
+--text-3xl: 1.875rem;    /* 30px - KPI 和关键数据 */
 ```
 
 #### 字重系统
@@ -177,8 +177,8 @@ z-index: var(--z-tooltip); /* 1600 - 提示框 */
 
 ```jsx
 // 标题层级
-<h1 className="text-2xl font-medium">库存管理系统</h1>      {/* 24px, 500 */}
-<h2 className="text-xl font-medium">出库单详情</h2>        {/* 20px, 500 */}
+<h1 className="text-2xl font-semibold">库存管理系统</h1>   {/* 24px, 600 */}
+<h2 className="text-xl font-semibold">出库单详情</h2>      {/* 20px, 600 */}
 <h3 className="text-lg font-medium">基本信息</h3>          {/* 16px, 500 */}
 
 // 正文内容
@@ -191,7 +191,7 @@ z-index: var(--z-tooltip); /* 1600 - 提示框 */
 <TableHead className="text-sm font-medium">商品名称</TableHead>
 
 // 数字强调
-<div className="text-3xl font-semibold">12,458</div> {/* 大数据展示 */}
+<div className="text-3xl font-medium tabular-nums">12,458</div> {/* KPI */}
 ```
 
 ### 7. 图标 Token

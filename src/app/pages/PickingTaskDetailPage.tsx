@@ -15,6 +15,8 @@ import {
 } from "../components/ui/table";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { pickingDetailStatusMap, priorityStatusMap } from "../configs/wmsStatusMap";
 import {
   ArrowLeft, Package, Play, CheckCircle, X, Download, AlertCircle,
   MapPin, Clock, User, FileText, Image as ImageIcon
@@ -134,60 +136,6 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
 
   const progress = (taskInfo.pickedQty / taskInfo.totalQty) * 100;
 
-  // 获取状态Badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "待分配":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">待分配</Badge>;
-      case "待拣货":
-        return <Badge variant="outline" className="bg-info-50 text-info-600 border-info-200">待拣货</Badge>;
-      case "拣货中":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">
-          <Play className="w-3 h-3 mr-1" />
-          拣货中
-        </Badge>;
-      case "已完成":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          已完成
-        </Badge>;
-      case "已取消":
-        return <Badge variant="outline" className="bg-error-50 text-error-600 border-error-200">已取消</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  // 获取优先级Badge
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case "紧急":
-        return <Badge variant="outline" className="bg-error-50 text-error-600 border-error-200">紧急</Badge>;
-      case "高":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">高</Badge>;
-      case "中":
-        return <Badge variant="outline" className="bg-info-50 text-info-600 border-info-200">中</Badge>;
-      case "低":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">低</Badge>;
-      default:
-        return <Badge variant="outline">{priority}</Badge>;
-    }
-  };
-
-  // 获取拣货状态Badge
-  const getPickingStatusBadge = (status: string) => {
-    switch (status) {
-      case "待拣货":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">待拣货</Badge>;
-      case "拣货中":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">拣货中</Badge>;
-      case "已完成":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">已完成</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
   return (
     <WMSLayout title="拣货任务详情" currentPath="/picking/tasks" onNavigate={onNavigate}>
       <div className="p-6 space-y-4">
@@ -243,11 +191,11 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">优先级</div>
-                  {getPriorityBadge(taskInfo.priority)}
+                  <StatusBadge {...priorityStatusMap[taskInfo.priority as keyof typeof priorityStatusMap]} />
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">任务状态</div>
-                  {getStatusBadge(taskInfo.status)}
+                  <StatusBadge {...pickingDetailStatusMap[taskInfo.status]} />
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">拣货员</div>
@@ -307,13 +255,13 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
         {/* Tab内容 */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="items">
-              <Package className="w-4 h-4 mr-2" />
+            <TabsTrigger value="items" className="group gap-1">
               拣货明细
+              <StatusTabCount count={mockPickingItems.length} />
             </TabsTrigger>
-            <TabsTrigger value="logs">
-              <FileText className="w-4 h-4 mr-2" />
+            <TabsTrigger value="logs" className="group gap-1">
               操作日志
+              <StatusTabCount count={mockLogs.length} />
             </TabsTrigger>
           </TabsList>
 
@@ -323,7 +271,7 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <DataTableHeaderRow className="bg-muted/50">
                       <TableHead className="w-[60px]">序号</TableHead>
                       <TableHead className="w-[140px]">SKU编码</TableHead>
                       <TableHead className="w-[200px]">商品信息</TableHead>
@@ -338,13 +286,13 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
                       <TableHead className="w-[100px]">实际库位</TableHead>
                       <TableHead className="w-[140px]">拣货时间</TableHead>
                       <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {mockPickingItems.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="text-center">
-                          <span className="font-medium">{item.sequence}</span>
+                          <span className="tabular-nums">{item.sequence}</span>
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-sm">{item.skuCode}</span>
@@ -372,10 +320,10 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.requiredQty}</span>
+                          <span className="text-sm tabular-nums">{item.requiredQty}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium text-success-600">{item.pickedQty}</span>
+                          <span className="text-sm tabular-nums text-success-600">{item.pickedQty}</span>
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="text-sm">{item.remainingQty}</span>
@@ -390,7 +338,7 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
                           <span className="text-sm">{item.relatedOrders}单</span>
                         </TableCell>
                         <TableCell>
-                          {getPickingStatusBadge(item.pickingStatus)}
+                          <StatusBadge {...pickingDetailStatusMap[item.pickingStatus]} />
                         </TableCell>
                         <TableCell>
                           <span className="font-mono text-sm">{item.actualLocation}</span>
@@ -441,7 +389,7 @@ export default function PickingTaskDetailPage({ onNavigate, taskId = "1" }: Pick
                       </div>
                       <div className="flex-1 pb-8">
                         <div className="flex items-center gap-3 mb-1">
-                          <span className="font-medium">{log.action}</span>
+                          <span>{log.action}</span>
                           <span className="text-sm text-muted-foreground">•</span>
                           <span className="text-sm text-muted-foreground">{log.operateTime}</span>
                         </div>

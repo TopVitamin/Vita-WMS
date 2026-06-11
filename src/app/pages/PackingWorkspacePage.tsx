@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -14,10 +15,12 @@ import {
 } from "../components/ui/select";
 import { Progress } from "../components/ui/progress";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { QuantityProgress, ScanInputPanel, WorkflowPageLayout, WorkflowStepBar } from "../components/business";
 import {
   Package, CheckCircle, Scan, Ruler, Weight, Camera, Printer,
   Image as ImageIcon, AlertCircle, Check, X
 } from "lucide-react";
+import { completePackingForOutboundOrder } from "../services/mock";
 
 interface PackingWorkspacePageProps {
   onNavigate: (path: string) => void;
@@ -36,8 +39,8 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
 
   // Mock订单信息
   const orderInfo = currentStep !== "scan-order" ? {
-    orderNo: "SO-20260602-0089",
-    customerName: "维他很忙",
+    orderNo: orderNo || "SPF-2024-088888",
+    customerName: "Shopify-US",
     recipientName: "张三",
     recipientPhone: "138****5678",
     address: "广东省深圳市南山区科技园南区深圳湾科技生态园10栋A座2001",
@@ -83,13 +86,34 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
     if (allScanned) {
       setCurrentStep("package-info");
     } else {
-      alert("还有商品未扫描完成！");
+      toast.error("还有商品未扫描完成");
     }
+  };
+
+  const handleMockCompleteScan = () => {
+    if (!orderInfo) return;
+    setScannedItems(orderInfo.items.flatMap((item) => Array.from({ length: item.requiredQty }, () => item.skuCode)));
+    setCurrentStep("package-info");
   };
 
   // 完成打包
   const handleCompletePacking = () => {
-    alert(`订单 ${orderInfo?.orderNo} 打包完成！`);
+    if (!orderInfo) return;
+
+    const outboundPackage = completePackingForOutboundOrder({
+      orderNo: orderInfo.orderNo,
+      customer: orderInfo.customerName,
+      boxNo: trackingNo || `BOX-${orderInfo.orderNo}`,
+      items: orderInfo.items.map((item) => ({ sku: item.skuCode, qty: item.requiredQty })),
+      weight: packageWeight ? Number(packageWeight) : undefined,
+      length: packageLength ? Number(packageLength) : undefined,
+      width: packageWidth ? Number(packageWidth) : undefined,
+      height: packageHeight ? Number(packageHeight) : undefined,
+      carrier: courier || undefined,
+      trackingNo: trackingNo || undefined,
+    });
+
+    toast.success(`订单 ${orderInfo.orderNo} 打包完成，已生成包裹 ${outboundPackage.packageNo}`);
     setCurrentStep("complete");
     setTimeout(() => {
       // 重置状态，准备打包下一单
@@ -111,12 +135,27 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
     return Math.min((scannedCount / requiredQty) * 100, 100);
   };
 
+  const currentStepId =
+    currentStep === "scan-order" ? "order" : currentStep === "scan-items" ? "items" : currentStep === "package-info" ? "package" : "complete";
+
   return (
     <WMSLayout title="打包工作台" currentPath="/packing/workspace" onNavigate={onNavigate}>
-      <div className="p-6 max-w-7xl mx-auto">
-        <div className="grid grid-cols-12 gap-6">
-          {/* 左侧：订单信息（40%） */}
-          <div className="col-span-5 space-y-4">
+      <WorkflowPageLayout
+        title="打包工作台"
+        description="扫描订单、校验商品、录入包裹信息并完成出库打包。"
+        steps={
+          <WorkflowStepBar
+            currentStepId={currentStepId}
+            steps={[
+              { id: "order", label: "订单", description: "扫描订单号" },
+              { id: "items", label: "校验", description: "扫描商品" },
+              { id: "package", label: "打包", description: "重量尺寸" },
+              { id: "complete", label: "完成", description: "提交结果" },
+            ]}
+          />
+        }
+        sidebar={
+          <>
             {/* 步骤1：扫描订单号 */}
             {currentStep === "scan-order" && (
               <Card>
@@ -127,21 +166,17 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>订单号 / 拣货单号</Label>
-                    <Input
-                      placeholder="请扫描或输入订单号"
-                      value={orderNo}
-                      onChange={(e) => setOrderNo(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleScanOrder()}
-                      className="text-lg h-12"
-                      autoFocus
-                    />
-                  </div>
-                  <Button className="w-full h-12" onClick={handleScanOrder}>
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    确认订单
-                  </Button>
+                  <ScanInputPanel
+                    label="订单号 / 拣货单号"
+                    placeholder="请扫描或输入订单号"
+                    value={orderNo}
+                    onChange={setOrderNo}
+                    onEnter={(event) => {
+                      if (event.key === "Enter") handleScanOrder();
+                    }}
+                    actionLabel="确认订单"
+                    onAction={handleScanOrder}
+                  />
                 </CardContent>
               </Card>
             )}
@@ -216,7 +251,7 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
                                   </span>
                                   {isComplete && <CheckCircle className="w-4 h-4 text-success-600" />}
                                 </div>
-                                <Progress value={progress} className="h-1" />
+                                <QuantityProgress current={scannedCount} total={item.requiredQty} />
                               </>
                             )}
                             {currentStep !== "scan-items" && (
@@ -232,10 +267,10 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
                 </Card>
               </>
             )}
-          </div>
-
-          {/* 右侧：打包操作区（60%） */}
-          <div className="col-span-7 space-y-4">
+          </>
+        }
+        primary={
+          <>
             {/* 步骤2：扫描商品校验 */}
             {currentStep === "scan-items" && (
               <Card>
@@ -246,28 +281,27 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>扫描商品条码</Label>
-                    <Input
-                      placeholder="请扫描商品条码进行校验"
-                      onKeyDown={(e) => {
+                  <ScanInputPanel
+                    label="扫描商品条码"
+                    placeholder="请扫描商品条码进行校验"
+                    value=""
+                    onChange={() => {}}
+                    onEnter={(e) => {
                         if (e.key === "Enter" && e.currentTarget.value) {
                           handleScanItem(e.currentTarget.value);
                           e.currentTarget.value = "";
                         }
                       }}
-                      className="text-lg h-12"
-                      autoFocus
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      请逐个扫描商品条码，确保与订单清单一致
-                    </p>
-                  </div>
+                    helper="请逐个扫描商品条码，确保与订单清单一致"
+                  />
 
                   <div className="flex gap-3">
                     <Button className="flex-1 h-12" onClick={handleCompleteItemScan}>
                       <CheckCircle className="w-5 h-5 mr-2" />
                       完成扫描，进入打包
+                    </Button>
+                    <Button variant="secondary" className="h-12" onClick={handleMockCompleteScan}>
+                      自动扫齐
                     </Button>
                     <Button variant="outline" className="h-12" onClick={() => setScannedItems([])}>
                       重新扫描
@@ -475,9 +509,9 @@ export default function PackingWorkspacePage({ onNavigate }: PackingWorkspacePag
                 </CardContent>
               </Card>
             )}
-          </div>
-        </div>
-      </div>
+          </>
+        }
+      />
     </WMSLayout>
   );
 }

@@ -11,6 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { ConfirmActionDialog, DataTableHeaderRow, StatusBadge } from "../components/business";
+import { enabledStatusMap } from "../configs/wmsStatusMap";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +47,7 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<any>(null);
+  const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
 
   // 模拟数据
   const customerData = [
@@ -164,16 +168,20 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
   };
 
   const handleDelete = (customerId: string) => {
-    // 实际项目中这里应该调用API
-    console.log("Delete customer:", customerId);
+    setDeleteCustomerId(customerId);
+  };
+
+  const confirmDeleteCustomer = () => {
+    if (deleteCustomerId) toast.success(`客户 ${deleteCustomerId} 已删除`);
+    setDeleteCustomerId(null);
   };
 
   return (
     <WMSLayout title="客户管理" currentPath="/master-data/customers" onNavigate={handleNavigate}>
       <div className="p-6 space-y-6">
         {/* 操作栏 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
@@ -213,7 +221,7 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             <Button variant="outline" size="sm">
               <Upload className="w-4 h-4 mr-2" />
               导入
@@ -273,7 +281,7 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
         <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+              <DataTableHeaderRow>
                 <TableHead className="w-12">
                   <Checkbox
                     checked={selectedItems.length === customerData.length}
@@ -290,18 +298,13 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
                 <TableHead>最后下单</TableHead>
                 <TableHead>状态</TableHead>
                 <TableHead className="text-right">操作</TableHead>
-              </TableRow>
+              </DataTableHeaderRow>
             </TableHeader>
             <TableBody>
               {customerData.map((customer, index) => (
                 <TableRow
                   key={customer.customerId}
-                  className="hover:bg-table-row-hover transition-colors"
-                  style={{
-                    backgroundColor: selectedItems.includes(`customer-${index}`)
-                      ? "var(--table-row-hover)"
-                      : undefined,
-                  }}
+                  className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`customer-${index}`) ? "bg-table-row-hover" : ""}`}
                 >
                   <TableCell>
                     <Checkbox
@@ -354,15 +357,7 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
                     {customer.lastOrderTime}
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={customer.status === "启用" ? "default" : "secondary"}
-                      className={customer.status === "启用" 
-                        ? "bg-success-50 text-success-700 border-success-200" 
-                        : "bg-gray-100 text-gray-600 border-gray-200"
-                      }
-                    >
-                      {customer.status}
-                    </Badge>
+                    <StatusBadge {...enabledStatusMap[customer.status]} />
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -564,6 +559,18 @@ export default function CustomerManagementPage({ onNavigate }: CustomerManagemen
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmActionDialog
+        destructive
+        confirmLabel="确认删除"
+        description="删除客户会影响客户资料、SKU归属和历史单据查询。当前演示环境仅展示删除确认流程。"
+        onConfirm={confirmDeleteCustomer}
+        onOpenChange={(open) => {
+          if (!open) setDeleteCustomerId(null);
+        }}
+        open={Boolean(deleteCustomerId)}
+        title="删除客户"
+      />
     </WMSLayout>
   );
 }

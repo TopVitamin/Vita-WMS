@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -30,8 +31,9 @@ import {
 import { Checkbox } from "../components/ui/checkbox";
 import { Label } from "../components/ui/label";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import { KpiCard, PickingTaskStatusBadge, PriorityBadge } from "../components/business";
-import { listPickingTasks } from "../services/mock";
+import { DataTableHeaderRow, KpiCard } from "../components/business";
+import { PickingTaskStatusBadge, PriorityBadge } from "../components/wms/WmsStatusBadges";
+import { listPickingTasks, startPickingWork, setSelectedWaveId } from "../services/mock";
 import type { PickingTask } from "../types/wms";
 import {
   Search, Plus, Filter, RefreshCcw, Download, UserPlus, X,
@@ -43,7 +45,7 @@ interface PickingTaskListPageProps {
 }
 
 export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageProps) {
-  const pickingTaskData = listPickingTasks();
+  const [pickingTaskData, setPickingTaskData] = useState<PickingTask[]>(() => listPickingTasks());
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -56,8 +58,16 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
   const filteredData = pickingTaskData.filter((item: PickingTask) => {
     if (searchKeyword) {
       const keyword = searchKeyword.toLowerCase();
-      if (!item.taskNo.toLowerCase().includes(keyword) &&
-          !(item.waveNo?.toLowerCase().includes(keyword))) {
+      const searchableText = [
+        item.taskNo,
+        item.waveNo || "",
+        item.pickingType,
+        item.priority,
+        item.picker?.name || "",
+        String(item.orderCount),
+        String(item.skuCount),
+      ].join(" ").toLowerCase();
+      if (!searchableText.includes(keyword)) {
         return false;
       }
     }
@@ -94,14 +104,23 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
   };
 
   const confirmAssign = () => {
-    alert(`已将 ${selectedItems.length} 个任务分配给 ${selectedPicker}`);
+    toast.success(`已将 ${selectedItems.length} 个任务分配给 ${selectedPicker}`);
     setIsAssignDialogOpen(false);
     setSelectedItems([]);
     setSelectedPicker("");
   };
 
-  const getStatusBadge = (status: PickingTask["status"]) => <PickingTaskStatusBadge status={status} />;
-  const getPriorityBadge = (priority: PickingTask["priority"]) => <PriorityBadge priority={priority} />;
+  const refreshTasks = () => {
+    setPickingTaskData(listPickingTasks());
+  };
+
+  const handleStartPicking = (taskNo: string) => {
+    const work = startPickingWork(taskNo);
+    if (work) {
+      refreshTasks();
+      toast.success(`拣货单 ${taskNo} 已开始`);
+    }
+  };
 
   // 统计数据
   const totalTasks = pickingTaskData.length;
@@ -129,7 +148,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
-                    placeholder="任务单号 / 波次号"
+                    placeholder="任务单号 / 波次号 / 拣货类型 / 拣货员 / 优先级"
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     className="pl-9"
@@ -212,7 +231,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
 
               {/* 新建任务 */}
               <div className="col-span-1">
-                <Button className="w-full" onClick={() => alert("创建拣货任务")}>
+                <Button className="w-full" onClick={() => toast.info("创建拣货任务功能将在波次策略接入后开放")}>
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -220,13 +239,13 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
 
             {/* 批量操作栏 */}
             {selectedItems.length > 0 && (
-              <div className="mt-4 flex items-center justify-between p-3 bg-primary-50 border border-primary-200 rounded-lg">
+              <div className="mt-4 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 p-3">
                 <div className="flex items-center gap-3">
                   <Checkbox
                     checked={true}
                     onCheckedChange={() => setSelectedItems([])}
                   />
-                  <span className="text-sm text-primary-700">
+                  <span className="text-sm text-primary">
                     已选择 <strong>{selectedItems.length}</strong> 项
                   </span>
                 </div>
@@ -255,7 +274,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
+                  <DataTableHeaderRow className="bg-muted/50">
                     <TableHead className="w-12">
                       <Checkbox
                         checked={selectedItems.length === filteredData.length && filteredData.length > 0}
@@ -276,7 +295,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                     <TableHead className="w-[140px]">预计完成</TableHead>
                     <TableHead className="w-[140px]">实际完成</TableHead>
                     <TableHead className="w-[140px] text-right">操作</TableHead>
-                  </TableRow>
+                  </DataTableHeaderRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.map((item) => {
@@ -290,11 +309,30 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                           />
                         </TableCell>
                         <TableCell>
-                          <span className="font-mono text-sm">{item.taskNo}</span>
+                          <a
+                            href="#"
+                            className="font-mono text-primary hover:underline text-sm"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onNavigate(`/picking/tasks/${item.id}`);
+                            }}
+                          >
+                            {item.taskNo}
+                          </a>
                         </TableCell>
                         <TableCell>
                           {item.waveNo ? (
-                            <span className="font-mono text-sm">{item.waveNo}</span>
+                            <a
+                              href="#"
+                              className="font-mono text-primary hover:underline text-sm"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setSelectedWaveId(item.waveNo);
+                                onNavigate("/wave/detail");
+                              }}
+                            >
+                              {item.waveNo}
+                            </a>
                           ) : (
                             <span className="text-sm text-muted-foreground">-</span>
                           )}
@@ -303,7 +341,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                           <span className="text-sm">{item.pickingType}</span>
                         </TableCell>
                         <TableCell>
-                          {getPriorityBadge(item.priority)}
+                          <PriorityBadge priority={item.priority} />
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{item.orderCount}单</span>
@@ -312,12 +350,12 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                           <span className="text-sm">{item.skuCount}个</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.totalQty}件</span>
+                          <span className="text-sm tabular-nums">{item.totalQty}件</span>
                         </TableCell>
                         <TableCell>
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{item.pickedQty}件</span>
+                              <span className="text-sm tabular-nums">{item.pickedQty}件</span>
                               <span className="text-xs text-muted-foreground">
                                 ({progress.toFixed(0)}%)
                               </span>
@@ -338,7 +376,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                           )}
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(item.status)}
+                          <PickingTaskStatusBadge status={item.status} />
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">{item.createTime}</span>
@@ -368,7 +406,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
                               </Button>
                             )}
                             {item.status === "待拣货" && (
-                              <Button variant="ghost" size="sm">
+                              <Button variant="ghost" size="sm" onClick={() => handleStartPicking(item.taskNo)}>
                                 开始
                               </Button>
                             )}
@@ -403,7 +441,7 @@ export default function PickingTaskListPage({ onNavigate }: PickingTaskListPageP
             <CardContent className="py-3">
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground">
-                  显示 <span className="font-medium">{filteredData.length}</span> 条结果，共 <span className="font-medium">{pickingTaskData.length}</span> 条
+                  显示 {filteredData.length} 条结果，共 {pickingTaskData.length} 条
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" disabled>

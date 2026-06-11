@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -6,6 +7,8 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow } from "../components/business";
+import { zoneTypeVisualMap } from "../configs/wmsVisualConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
@@ -30,10 +33,10 @@ import { EmptyState } from "../components/wms/EmptyState";
 
 // 库区类型枚举
 const ZONE_TYPES = [
-  { value: "storage", label: "存储区", icon: Package, color: "var(--purple-600)" },
-  { value: "pick_face", label: "拣货区", icon: PackageOpen, color: "var(--info-500)" },
-  { value: "staging", label: "暂存区", icon: Truck, color: "var(--warning-500)" },
-  { value: "qc_return", label: "异常区", icon: AlertTriangle, color: "var(--error-500)" },
+  { value: "storage", label: "存储区", icon: Package },
+  { value: "pick_face", label: "拣货区", icon: PackageOpen },
+  { value: "staging", label: "暂存区", icon: Truck },
+  { value: "qc_return", label: "异常区", icon: AlertTriangle },
 ] as const;
 
 type ZoneType = typeof ZONE_TYPES[number]['value'];
@@ -227,7 +230,8 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
 
   // 获取库区类型配置
   const getZoneTypeConfig = (type: ZoneType) => {
-    return ZONE_TYPES.find(t => t.value === type) || ZONE_TYPES[0];
+    const config = ZONE_TYPES.find(t => t.value === type) || ZONE_TYPES[0];
+    return { ...config, visualColor: zoneTypeVisualMap[config.value].color };
   };
 
   // 打开编辑对话框
@@ -259,8 +263,7 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
 
   // 处理提交
   const handleSubmit = () => {
-    console.log("提交数据:", formData);
-    // 这里应该调用API保存数据
+    toast.success(editingZone ? "库区已更新" : "库区已创建");
     setIsCreateDialogOpen(false);
     setIsEditDialogOpen(false);
     resetForm();
@@ -268,8 +271,7 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
 
   // 切换启用/停用状态
   const handleToggleActive = (zone: Zone) => {
-    console.log(`切换库区 ${zone.zoneCode} 状态:`, !zone.isActive);
-    // 这里应该调用API更新状态
+    toast.success(`${zone.zoneCode} 已${zone.isActive ? "停用" : "启用"}`);
   };
 
   return (
@@ -344,14 +346,17 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
                         <SelectValue placeholder="选择库区类型" />
                       </SelectTrigger>
                       <SelectContent>
-                        {ZONE_TYPES.map((type) => (
+                        {ZONE_TYPES.map((type) => {
+                          const visual = zoneTypeVisualMap[type.value];
+                          return (
                           <SelectItem key={type.value} value={type.value}>
                             <div className="flex items-center gap-2">
-                              <type.icon className="w-4 h-4" style={{ color: type.color }} />
+                              <type.icon className="w-4 h-4" style={{ color: visual.color }} />
                               {type.label}
                             </div>
                           </SelectItem>
-                        ))}
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
@@ -548,7 +553,7 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <DataTableHeaderRow>
                       <TableHead>库区编号</TableHead>
                       <TableHead>库区名称</TableHead>
                       <TableHead>所属仓库</TableHead>
@@ -559,7 +564,7 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
                       <TableHead className="text-center">状态</TableHead>
                       <TableHead>更新时间</TableHead>
                       <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {filteredZones.map((zone) => {
@@ -578,7 +583,7 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <TypeIcon className="w-4 h-4" style={{ color: typeConfig.color }} />
+                              <TypeIcon className="w-4 h-4" style={{ color: typeConfig.visualColor }} />
                               <span>{typeConfig.label}</span>
                             </div>
                           </TableCell>
@@ -687,14 +692,17 @@ export default function ZoneManagementPage({ onNavigate }: ZoneManagementPagePro
                                           <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
-                                          {ZONE_TYPES.map((type) => (
+                                          {ZONE_TYPES.map((type) => {
+                                            const visual = zoneTypeVisualMap[type.value];
+                                            return (
                                             <SelectItem key={type.value} value={type.value}>
                                               <div className="flex items-center gap-2">
-                                                <type.icon className="w-4 h-4" style={{ color: type.color }} />
+                                                <type.icon className="w-4 h-4" style={{ color: visual.color }} />
                                                 {type.label}
                                               </div>
                                             </SelectItem>
-                                          ))}
+                                            );
+                                          })}
                                         </SelectContent>
                                       </Select>
                                     </div>

@@ -1,0 +1,531 @@
+export type InboundOrderStatus = "pending" | "in_progress" | "completed" | "shelved" | "cancelled";
+
+export interface InboundItem {
+  sku: string;
+  productName: string;
+  barcode: string;
+  spec: string;
+  plannedQty: number;
+  receivedQty: number;
+  shelvedQty: number;
+}
+
+export interface ReceivingStagingLocation {
+  code: string;
+  name: string;
+  receiptType: "pallet" | "parcel" | "carton" | "default";
+}
+
+export interface InboundOrderListItem {
+  id: string;
+  note: string;
+  createdQty: string;
+  productCount: number;
+  skuInfo: string;
+  referenceNo: string;
+  tracking: string;
+  deliveryMethod: string;
+  estimatedDate: string;
+  customer: string;
+  status: InboundOrderStatus;
+}
+
+export interface ReceiveRecord {
+  batchNo: string;
+  container: { containerNo: string; containerType: string };
+  stagingLocation: ReceivingStagingLocation;
+  items: Array<{ sku: string; productName: string; qty: number }>;
+  receiveTime: string;
+  receiver: string;
+  note: string;
+}
+
+export interface PutawayRecord {
+  batchNo: string;
+  containerNo: string;
+  sku: string;
+  productName: string;
+  qty: number;
+  location: string;
+  putawayTime: string;
+  operator: string;
+  note: string;
+}
+
+export interface InboundLog {
+  time: string;
+  operator: string;
+  action: string;
+  detail: string;
+}
+
+export interface InboundDetail {
+  id: string;
+  referenceNo: string;
+  customer: string;
+  status: InboundOrderStatus;
+  createdTime: string;
+  createdBy: string;
+  estimatedDate: string;
+  actualArrivalDate: string;
+  deliveryMethod: string;
+  tracking: string;
+  note: string;
+  items: InboundItem[];
+  receiveRecords: ReceiveRecord[];
+  putawayRecords: PutawayRecord[];
+  logs: InboundLog[];
+}
+
+export interface ReceiveConfirmData {
+  container: { containerNo: string; containerType: string };
+  items: Array<InboundItem & { currentReceiveQty: number }>;
+  note: string;
+}
+
+export interface ReceivedContainerSnapshot {
+  inboundId: string;
+  customerName: string;
+  referenceNo: string;
+  receiveBatchNo: string;
+  receiveTime: string;
+  stagingLocation: ReceivingStagingLocation;
+  container: { containerNo: string; containerType: string };
+  items: Array<{
+    sku: string;
+    productName: string;
+    spec: string;
+    qty: number;
+  }>;
+}
+
+const ORDERS_STORAGE_KEY = "wms_mock_inbound_orders";
+const DETAILS_STORAGE_KEY = "wms_mock_inbound_details";
+const SELECTED_INBOUND_KEY = "wms_selected_inbound_id";
+
+export const receivingStagingLocations: ReceivingStagingLocation[] = [
+  { code: "STG-RCV-PALLET", name: "托盘收货暂存库位", receiptType: "pallet" },
+  { code: "STG-RCV-PARCEL", name: "快递包裹收货暂存库位", receiptType: "parcel" },
+  { code: "STG-RCV-CARTON", name: "整箱收货暂存库位", receiptType: "carton" },
+  { code: "STG-RCV-GENERAL", name: "通用收货暂存库位", receiptType: "default" },
+];
+
+const seedDetails: InboundDetail[] = [
+  {
+    id: "IB001042102963",
+    referenceNo: "REF-2024-1028",
+    customer: "ab00-HK买汇",
+    status: "in_progress",
+    createdTime: "2024-10-28 09:30:00",
+    createdBy: "张三",
+    estimatedDate: "2024-10-30",
+    actualArrivalDate: "2024-10-28 14:20:00",
+    deliveryMethod: "送货 (顺丰)",
+    tracking: "托盘/卡板",
+    note: "紧急入库，优先处理",
+    items: [
+      { sku: "SKU-001", productName: "无线蓝牙耳机", barcode: "6901234567890", spec: "黑色/标准版", plannedQty: 100, receivedQty: 60, shelvedQty: 40 },
+      { sku: "SKU-002", productName: "智能手环", barcode: "6901234567891", spec: "运动版/蓝色", plannedQty: 50, receivedQty: 30, shelvedQty: 20 },
+      { sku: "SKU-003", productName: "充电宝", barcode: "6901234567892", spec: "20000mAh", plannedQty: 80, receivedQty: 0, shelvedQty: 0 },
+    ],
+    receiveRecords: [
+      {
+        batchNo: "RCV-20241028-001",
+        container: { containerNo: "PLT-001", containerType: "托盘" },
+        stagingLocation: receivingStagingLocations[0],
+        items: [
+          { sku: "SKU-001", productName: "无线蓝牙耳机", qty: 40 },
+          { sku: "SKU-002", productName: "智能手环", qty: 20 },
+        ],
+        receiveTime: "2024-10-28 14:20:00",
+        receiver: "李四",
+        note: "第一批收货",
+      },
+      {
+        batchNo: "RCV-20241028-002",
+        container: { containerNo: "PLT-002", containerType: "托盘" },
+        stagingLocation: receivingStagingLocations[0],
+        items: [
+          { sku: "SKU-001", productName: "无线蓝牙耳机", qty: 20 },
+          { sku: "SKU-002", productName: "智能手环", qty: 10 },
+        ],
+        receiveTime: "2024-10-28 15:45:00",
+        receiver: "李四",
+        note: "",
+      },
+    ],
+    putawayRecords: [
+      { batchNo: "PUT-20241028-001", containerNo: "PLT-001", sku: "SKU-001", productName: "无线蓝牙耳机", qty: 30, location: "A-01-02-03", putawayTime: "2024-10-28 15:00:00", operator: "王五", note: "" },
+      { batchNo: "PUT-20241028-002", containerNo: "BOX-001", sku: "SKU-002", productName: "智能手环", qty: 20, location: "A-01-02-04", putawayTime: "2024-10-28 15:10:00", operator: "王五", note: "" },
+      { batchNo: "PUT-20241028-003", containerNo: "PLT-001", sku: "SKU-001", productName: "无线蓝牙耳机", qty: 10, location: "A-01-03-01", putawayTime: "2024-10-28 15:30:00", operator: "王五", note: "" },
+    ],
+    logs: [
+      { time: "2024-10-28 15:45:00", operator: "李四", action: "收货", detail: "收货批次 RCV-20241028-002，进入 STG-RCV-PALLET，收货数量 30 件" },
+      { time: "2024-10-28 15:30:00", operator: "王五", action: "上架", detail: "上架 SKU-001 × 10 件至 A-01-03-01" },
+      { time: "2024-10-28 15:10:00", operator: "王五", action: "上架", detail: "上架 SKU-002 × 20 件至 A-01-02-04" },
+      { time: "2024-10-28 15:00:00", operator: "王五", action: "上架", detail: "上架 SKU-001 × 30 件至 A-01-02-03" },
+      { time: "2024-10-28 14:20:00", operator: "李四", action: "收货", detail: "收货批次 RCV-20241028-001，进入 STG-RCV-PALLET，收货数量 60 件" },
+      { time: "2024-10-28 09:30:00", operator: "张三", action: "创建", detail: "创建入库单，计划入库 230 件" },
+    ],
+  },
+  createInboundDetail({
+    id: "IB001042102961",
+    referenceNo: "REF-2024-1029",
+    customer: "ab00-HK买汇",
+    tracking: "托盘/卡板",
+    deliveryMethod: "送货 (德邦)",
+    plannedQty: 70,
+    status: "pending",
+  }),
+  createInboundDetail({
+    id: "IB001040300965",
+    referenceNo: "1223",
+    customer: "ab00-HK买汇",
+    tracking: "快递包裹",
+    deliveryMethod: "快递",
+    plannedQty: 1,
+    status: "in_progress",
+    receivedQty: 0,
+  }),
+  createInboundDetail({
+    id: "IB001040300961",
+    referenceNo: "-",
+    customer: "ab00-HK买汇",
+    tracking: "快递包裹",
+    deliveryMethod: "快递",
+    plannedQty: 1,
+    status: "in_progress",
+    receivedQty: 0,
+  }),
+  createInboundDetail({
+    id: "IB001040223963",
+    referenceNo: "REF-2024-0998",
+    customer: "ab00-HK买汇",
+    tracking: "箱",
+    deliveryMethod: "送货 (顺丰)",
+    plannedQty: 30,
+    status: "completed",
+    receivedQty: 30,
+    note: "紧急入库",
+  }),
+  createInboundDetail({
+    id: "IB001024092365",
+    referenceNo: "REF-2024-0995",
+    customer: "ab00-HK买汇",
+    tracking: "箱",
+    deliveryMethod: "送货 (2025P)",
+    plannedQty: 2300,
+    status: "shelved",
+    receivedQty: 2300,
+    shelvedQty: 2300,
+    note: "大批量入库",
+  }),
+  createInboundDetail({
+    id: "IB001022056321",
+    referenceNo: "-",
+    customer: "ab00-HK买汇",
+    tracking: "托盘/卡板",
+    deliveryMethod: "-",
+    plannedQty: 200,
+    status: "cancelled",
+    note: "客户取消订单",
+  }),
+];
+
+function createInboundDetail(options: {
+  id: string;
+  referenceNo: string;
+  customer: string;
+  tracking: string;
+  deliveryMethod: string;
+  plannedQty: number;
+  status: InboundOrderStatus;
+  receivedQty?: number;
+  shelvedQty?: number;
+  note?: string;
+}): InboundDetail {
+  const receivedQty = options.receivedQty ?? 0;
+  return {
+    id: options.id,
+    referenceNo: options.referenceNo,
+    customer: options.customer,
+    status: options.status,
+    createdTime: "2024-10-28 09:30:00",
+    createdBy: "系统导入",
+    estimatedDate: "2024-10-30",
+    actualArrivalDate: receivedQty > 0 ? "2024-10-28 14:20:00" : "",
+    deliveryMethod: options.deliveryMethod,
+    tracking: options.tracking,
+    note: options.note || "-",
+    items: [
+      {
+        sku: "SKU-001",
+        productName: "无线蓝牙耳机",
+        barcode: "6901234567890",
+        spec: "黑色/标准版",
+        plannedQty: options.plannedQty,
+        receivedQty,
+        shelvedQty: options.shelvedQty ?? 0,
+      },
+    ],
+    receiveRecords: [],
+    putawayRecords: [],
+    logs: [
+      {
+        time: "2024-10-28 09:30:00",
+        operator: "系统导入",
+        action: "创建",
+        detail: `创建入库单，计划入库 ${options.plannedQty} 件`,
+      },
+    ],
+  };
+}
+
+function toOrderListItem(detail: InboundDetail): InboundOrderListItem {
+  const plannedQty = detail.items.reduce((sum, item) => sum + item.plannedQty, 0);
+  const receivedQty = detail.items.reduce((sum, item) => sum + item.receivedQty, 0);
+  const skuInfo =
+    detail.items.length === 1
+      ? `${detail.items[0].productName} * ${detail.items[0].plannedQty}`
+      : "多个SKU";
+
+  return {
+    id: detail.id,
+    note: detail.note || "-",
+    createdQty: `${receivedQty}/${plannedQty}`,
+    productCount: plannedQty,
+    skuInfo,
+    referenceNo: detail.referenceNo || "-",
+    tracking: detail.tracking || "-",
+    deliveryMethod: detail.deliveryMethod || "-",
+    estimatedDate: detail.estimatedDate || "-",
+    customer: detail.customer,
+    status: detail.status,
+  };
+}
+
+function readDetails(): InboundDetail[] {
+  if (typeof window === "undefined") return seedDetails;
+  const stored = sessionStorage.getItem(DETAILS_STORAGE_KEY);
+  if (!stored) {
+    sessionStorage.setItem(DETAILS_STORAGE_KEY, JSON.stringify(seedDetails));
+    sessionStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(seedDetails.map(toOrderListItem)));
+    return seedDetails;
+  }
+  return JSON.parse(stored);
+}
+
+function saveDetails(details: InboundDetail[]) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(DETAILS_STORAGE_KEY, JSON.stringify(details));
+  sessionStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(details.map(toOrderListItem)));
+}
+
+export function listInboundOrders(): InboundOrderListItem[] {
+  return readDetails().map(toOrderListItem);
+}
+
+export function getInboundDetail(inboundId?: string): InboundDetail {
+  const details = readDetails();
+  const selectedId = inboundId || getSelectedInboundId() || details[0]?.id;
+  return details.find((detail) => detail.id === selectedId) || details[0];
+}
+
+export function getInboundItems(inboundId: string): InboundItem[] {
+  return getInboundDetail(inboundId).items;
+}
+
+export function getInboundOrder(inboundId: string): InboundOrderListItem | undefined {
+  return listInboundOrders().find((order) => order.id === inboundId);
+}
+
+export function setSelectedInboundId(inboundId: string) {
+  if (typeof window !== "undefined") {
+    sessionStorage.setItem(SELECTED_INBOUND_KEY, inboundId);
+  }
+}
+
+export function getSelectedInboundId(): string | null {
+  if (typeof window === "undefined") return null;
+  return sessionStorage.getItem(SELECTED_INBOUND_KEY);
+}
+
+export function getReceivingStagingLocation(order: Pick<InboundOrderListItem, "tracking" | "deliveryMethod">): ReceivingStagingLocation {
+  const text = `${order.tracking || ""} ${order.deliveryMethod || ""}`;
+  if (/托盘|卡板|pallet/i.test(text)) return receivingStagingLocations[0];
+  if (/快递|包裹|parcel/i.test(text)) return receivingStagingLocations[1];
+  if (/箱|carton|box/i.test(text)) return receivingStagingLocations[2];
+  return receivingStagingLocations[3];
+}
+
+export function receiveInboundContainer(
+  inboundId: string,
+  data: ReceiveConfirmData
+): { detail: InboundDetail; orders: InboundOrderListItem[]; receipt: ReceivedContainerSnapshot } {
+  const details = readDetails();
+  const detailIndex = details.findIndex((item) => item.id === inboundId);
+  if (detailIndex === -1) {
+    throw new Error(`Inbound order ${inboundId} not found`);
+  }
+
+  const detail = details[detailIndex];
+  const stagingLocation = getReceivingStagingLocation(toOrderListItem(detail));
+  const batchNo = `RCV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(detail.receiveRecords.length + 1).padStart(3, "0")}`;
+  const receivedItems = data.items.map((item) => ({
+    sku: item.sku,
+    productName: item.productName,
+    spec: item.spec,
+    qty: item.currentReceiveQty,
+  }));
+  const receiveQty = receivedItems.reduce((sum, item) => sum + item.qty, 0);
+
+  const updatedItems = detail.items.map((item) => {
+    const receivedItem = data.items.find((target) => target.sku === item.sku);
+    if (!receivedItem) return item;
+    return {
+      ...item,
+      receivedQty: Math.min(item.plannedQty, item.receivedQty + receivedItem.currentReceiveQty),
+    };
+  });
+  const allReceived = updatedItems.every((item) => item.receivedQty >= item.plannedQty);
+  const allShelved = updatedItems.every((item) => item.shelvedQty >= item.plannedQty);
+  const newStatus: InboundOrderStatus = allShelved ? "shelved" : allReceived ? "completed" : "in_progress";
+
+  const receiveRecord: ReceiveRecord = {
+    batchNo,
+    container: data.container,
+    stagingLocation,
+    items: data.items.map((item) => ({ sku: item.sku, productName: item.productName, qty: item.currentReceiveQty })),
+    receiveTime: new Date().toLocaleString("zh-CN"),
+    receiver: "当前用户",
+    note: data.note,
+  };
+  const log: InboundLog = {
+    time: receiveRecord.receiveTime,
+    operator: "当前用户",
+    action: "收货",
+    detail: `收货批次 ${batchNo}，进入 ${stagingLocation.code}，收货数量 ${receiveQty} 件`,
+  };
+
+  const updatedDetail: InboundDetail = {
+    ...detail,
+    status: newStatus,
+    actualArrivalDate: detail.actualArrivalDate || receiveRecord.receiveTime,
+    items: updatedItems,
+    receiveRecords: [receiveRecord, ...detail.receiveRecords],
+    logs: [log, ...detail.logs],
+  };
+
+  details[detailIndex] = updatedDetail;
+  saveDetails(details);
+
+  return {
+    detail: updatedDetail,
+    orders: details.map(toOrderListItem),
+    receipt: {
+      inboundId: detail.id,
+      customerName: detail.customer,
+      referenceNo: detail.referenceNo,
+      receiveBatchNo: batchNo,
+      receiveTime: receiveRecord.receiveTime,
+      stagingLocation,
+      container: data.container,
+      items: receivedItems,
+    },
+  };
+}
+
+export function applyInboundPutawayCompletion(
+  inboundId: string,
+  records: Array<{ sku: string; productName: string; qty: number; locationCode: string; containerNo: string; note: string }>
+): InboundDetail | undefined {
+  const details = readDetails();
+  const detailIndex = details.findIndex((item) => item.id === inboundId);
+  if (detailIndex === -1) return undefined;
+
+  const detail = details[detailIndex];
+  const updatedItems = detail.items.map((item) => {
+    const qty = records.filter((record) => record.sku === item.sku).reduce((sum, record) => sum + record.qty, 0);
+    return qty > 0 ? { ...item, shelvedQty: Math.min(item.plannedQty, item.shelvedQty + qty) } : item;
+  });
+  const allShelved = updatedItems.every((item) => item.shelvedQty >= item.plannedQty);
+  const now = new Date().toLocaleString("zh-CN");
+  const putawayRecords = records.map((record, index) => ({
+    batchNo: `PUT-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(detail.putawayRecords.length + index + 1).padStart(3, "0")}`,
+    containerNo: record.containerNo,
+    sku: record.sku,
+    productName: record.productName,
+    qty: record.qty,
+    location: record.locationCode,
+    putawayTime: now,
+    operator: "当前用户",
+    note: record.note,
+  }));
+  const log: InboundLog = {
+    time: now,
+    operator: "当前用户",
+    action: "上架",
+    detail: `完成上架 ${records.reduce((sum, record) => sum + record.qty, 0)} 件，入库单状态${allShelved ? "已上架" : "部分上架"}`,
+  };
+
+  const updatedDetail: InboundDetail = {
+    ...detail,
+    status: allShelved ? "shelved" : detail.status,
+    items: updatedItems,
+    putawayRecords: [...putawayRecords, ...detail.putawayRecords],
+    logs: [log, ...detail.logs],
+  };
+
+  details[detailIndex] = updatedDetail;
+  saveDetails(details);
+  return updatedDetail;
+}
+
+export function completeInboundPutawayFromDetail(
+  inboundId: string,
+  input?: { locationCode?: string; containerNo?: string; note?: string }
+): InboundDetail | undefined {
+  const detail = getInboundDetail(inboundId);
+  const records = detail.items
+    .map((item) => ({
+      sku: item.sku,
+      productName: item.productName,
+      qty: Math.max(item.receivedQty - item.shelvedQty, 0),
+      locationCode: input?.locationCode || "A-01-01-01",
+      containerNo: input?.containerNo || "DETAIL-PUTAWAY",
+      note: input?.note || "详情页一键上架",
+    }))
+    .filter((record) => record.qty > 0);
+
+  if (records.length === 0) return detail;
+  return applyInboundPutawayCompletion(inboundId, records);
+}
+
+export function closeInboundOrder(inboundId: string, reason: string, note: string): InboundDetail | undefined {
+  const details = readDetails();
+  const detailIndex = details.findIndex((item) => item.id === inboundId);
+  if (detailIndex === -1) return undefined;
+  const now = new Date().toLocaleString("zh-CN");
+  details[detailIndex] = {
+    ...details[detailIndex],
+    status: "cancelled",
+    logs: [
+      {
+        time: now,
+        operator: "当前用户",
+        action: "关闭",
+        detail: `关闭原因：${reason}${note ? `，说明：${note}` : ""}`,
+      },
+      ...details[detailIndex].logs,
+    ],
+  };
+  saveDetails(details);
+  return details[detailIndex];
+}
+
+export function resetMockInbound(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(DETAILS_STORAGE_KEY, JSON.stringify(seedDetails));
+  sessionStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(seedDetails.map(toOrderListItem)));
+  sessionStorage.removeItem(SELECTED_INBOUND_KEY);
+}

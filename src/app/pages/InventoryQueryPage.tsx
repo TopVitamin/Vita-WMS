@@ -1,436 +1,321 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Download, Layers3, MapPin, Package, RefreshCcw, Search } from "lucide-react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
+import { DataTableHeaderRow, DataTableShell, KpiCard, KpiGrid, PageHeader, ListPageLayout } from "../components/business";
+import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
 import { Card, CardContent } from "../components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "../components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
-import { Checkbox } from "../components/ui/checkbox";
-import { ImageWithFallback } from "../components/figma/ImageWithFallback";
-import { DataTableShell, InventoryStatusBadge, KpiCard } from "../components/business";
-import { listInventoryItems } from "../services/mock";
-import type { InventoryItem } from "../types/wms";
-import {
-  Search, Filter, Download, RefreshCcw, MoreVertical, Package,
-  Snowflake, Eye, Lock, Image as ImageIcon
-} from "lucide-react";
+import { Input } from "../components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "../components/ui/tabs";
 
 interface InventoryQueryPageProps {
   onNavigate: (path: string) => void;
 }
 
-export default function InventoryQueryPage({ onNavigate }: InventoryQueryPageProps) {
-  const inventoryData = listInventoryItems();
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [customerFilter, setCustomerFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [alertFilter, setAlerFilter] = useState("all");
-  const [showZeroStock, setShowZeroStock] = useState(false);
+type ViewType = "sku" | "location" | "sku-batch" | "sku-location" | "detail";
 
-  // 筛选数据
-  const filteredData = inventoryData.filter((item: InventoryItem) => {
-    if (searchKeyword) {
-      const keyword = searchKeyword.toLowerCase();
-      if (!item.skuCode.toLowerCase().includes(keyword) &&
-          !item.productName.toLowerCase().includes(keyword)) {
-        return false;
-      }
-    }
-    if (customerFilter !== "all" && item.customerName !== customerFilter) return false;
-    if (statusFilter !== "all" && item.stockStatus !== statusFilter) return false;
-    if (alertFilter !== "all") {
-      if (alertFilter === "insufficient" && item.totalStock >= item.safetyStock) return false;
-      if (alertFilter === "stagnant" && item.inventoryAge < 45) return false;
-    }
-    if (!showZeroStock && item.totalStock === 0) return false;
-    return true;
+interface InventoryLedgerRow {
+  id: string;
+  owner: string;
+  warehouse: string;
+  sku: string;
+  productName: string;
+  batchNo: string;
+  location: string;
+  actualQty: number;
+  lockedQty: number;
+  availableQty: number;
+}
+
+interface InventoryViewRow {
+  id: string;
+  owner: string;
+  warehouse: string;
+  sku?: string;
+  productName?: string;
+  batchNo?: string;
+  location?: string;
+  skuCount?: number;
+  batchCount?: number;
+  actualQty: number;
+  lockedQty: number;
+  availableQty: number;
+}
+
+const inventoryLedger: InventoryLedgerRow[] = [
+  { id: "1", owner: "维他很忙", warehouse: "洛杉矶仓", sku: "ABC-123456", productName: "多功能蓝牙耳机", batchNo: "LOT-20260601-A", location: "A01-01-01", actualQty: 420, lockedQty: 30, availableQty: 390 },
+  { id: "2", owner: "维他很忙", warehouse: "洛杉矶仓", sku: "ABC-123456", productName: "多功能蓝牙耳机", batchNo: "LOT-20260601-A", location: "A01-01-05", actualQty: 310, lockedQty: 0, availableQty: 310 },
+  { id: "3", owner: "维他很忙", warehouse: "洛杉矶仓", sku: "ABC-123456", productName: "多功能蓝牙耳机", batchNo: "LOT-20260608-B", location: "A01-02-01", actualQty: 250, lockedQty: 40, availableQty: 210 },
+  { id: "4", owner: "维他很忙", warehouse: "安大略仓", sku: "ABC-123456", productName: "多功能蓝牙耳机", batchNo: "LOT-20260608-B", location: "B01-01-02", actualQty: 270, lockedQty: 0, availableQty: 270 },
+  { id: "5", owner: "维他很忙", warehouse: "洛杉矶仓", sku: "ABC-123457", productName: "智能手环运动版", batchNo: "LOT-20260528-A", location: "A01-01-01", actualQty: 360, lockedQty: 20, availableQty: 340 },
+  { id: "6", owner: "维他很忙", warehouse: "洛杉矶仓", sku: "ABC-123457", productName: "智能手环运动版", batchNo: "LOT-20260606-B", location: "A01-02-03", actualQty: 530, lockedQty: 20, availableQty: 510 },
+  { id: "7", owner: "跨境小王", warehouse: "洛杉矶仓", sku: "DEF-789012", productName: "运动水杯 1L", batchNo: "LOT-20260530-A", location: "C01-01-01", actualQty: 900, lockedQty: 0, availableQty: 900 },
+  { id: "8", owner: "跨境小王", warehouse: "洛杉矶仓", sku: "DEF-789012", productName: "运动水杯 1L", batchNo: "LOT-20260530-A", location: "C01-01-02", actualQty: 650, lockedQty: 50, availableQty: 600 },
+  { id: "9", owner: "跨境小王", warehouse: "安大略仓", sku: "DEF-789012", productName: "运动水杯 1L", batchNo: "LOT-20260607-B", location: "B02-01-01", actualQty: 750, lockedQty: 50, availableQty: 700 },
+  { id: "10", owner: "跨境小王", warehouse: "洛杉矶仓", sku: "GHI-345678", productName: "瑜伽垫专业版", batchNo: "LOT-20260515-A", location: "D01-01-01", actualQty: 96, lockedQty: 0, availableQty: 96 },
+  { id: "11", owner: "跨境小王", warehouse: "洛杉矶仓", sku: "GHI-345678", productName: "瑜伽垫专业版", batchNo: "LOT-20260515-A", location: "D01-01-02", actualQty: 60, lockedQty: 0, availableQty: 60 },
+];
+
+const viewConfigs: Record<ViewType, { label: string; description: string; scope: "核心视图" | "作业视图" }> = {
+  sku: { label: "SKU库存", description: "按货主、仓库和SKU汇总，适合主管快速查看商品整体库存。", scope: "核心视图" },
+  location: { label: "库位库存", description: "按库位汇总，查看每个库位放了多少货、涉及多少SKU和批次。", scope: "核心视图" },
+  "sku-batch": { label: "SKU-批次库存", description: "查看指定SKU各批次的库存，不展开批次分布在哪些库位。", scope: "核心视图" },
+  "sku-location": { label: "SKU-库位库存", description: "查看指定SKU在各库位的库存，可直接辅助拣货定位。", scope: "作业视图" },
+  detail: { label: "SKU-批次-库位", description: "最细库存粒度，精确到SKU、批次和库位，供上架、拣货、移库使用。", scope: "作业视图" },
+};
+
+function aggregateRows(rows: InventoryLedgerRow[], view: ViewType): InventoryViewRow[] {
+  if (view === "detail") return rows;
+
+  const groups = new Map<string, InventoryViewRow & { skuSet: Set<string>; batchSet: Set<string> }>();
+  rows.forEach((row) => {
+    const dimensions = view === "sku"
+      ? [row.owner, row.warehouse, row.sku]
+      : view === "location"
+        ? [row.owner, row.warehouse, row.location]
+        : view === "sku-batch"
+          ? [row.owner, row.warehouse, row.sku, row.batchNo]
+          : [row.owner, row.warehouse, row.sku, row.location];
+    const key = dimensions.join("|");
+    const current = groups.get(key) ?? {
+      id: key,
+      owner: row.owner,
+      warehouse: row.warehouse,
+      sku: view === "location" ? undefined : row.sku,
+      productName: view === "location" ? undefined : row.productName,
+      batchNo: view === "sku-batch" ? row.batchNo : undefined,
+      location: view === "location" || view === "sku-location" ? row.location : undefined,
+      actualQty: 0,
+      lockedQty: 0,
+      availableQty: 0,
+      skuSet: new Set<string>(),
+      batchSet: new Set<string>(),
+    };
+    current.actualQty += row.actualQty;
+    current.lockedQty += row.lockedQty;
+    current.availableQty += row.availableQty;
+    current.skuSet.add(row.sku);
+    current.batchSet.add(row.batchNo);
+    groups.set(key, current);
   });
 
-  // 全选/取消全选
-  const handleSelectAll = (checked: boolean) => {
-    if (checked) {
-      setSelectedItems(filteredData.map(item => item.id));
-    } else {
-      setSelectedItems([]);
-    }
+  return Array.from(groups.values()).map(({ skuSet, batchSet, ...row }) => ({
+    ...row,
+    skuCount: skuSet.size,
+    batchCount: batchSet.size,
+  }));
+}
+
+function QuantityCell({ value, tone = "default" }: { value: number; tone?: "default" | "locked" | "available" }) {
+  const className = tone === "locked"
+    ? value > 0 ? "font-medium text-warning-600" : "text-muted-foreground"
+    : tone === "available" ? "font-medium text-success-600" : "font-medium";
+  return <TableCell className={`text-right tabular-nums ${className}`}>{value.toLocaleString()}</TableCell>;
+}
+
+export default function InventoryQueryPage({ onNavigate }: InventoryQueryPageProps) {
+  const [view, setView] = useState<ViewType>("sku");
+  const [keyword, setKeyword] = useState("");
+  const [owner, setOwner] = useState("all");
+  const [warehouse, setWarehouse] = useState("all");
+
+  const filteredLedger = useMemo(() => inventoryLedger.filter((row) => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    const matchesKeyword = !normalizedKeyword || [row.sku, row.productName, row.batchNo, row.location]
+      .some((value) => value.toLowerCase().includes(normalizedKeyword));
+    return matchesKeyword
+      && (owner === "all" || row.owner === owner)
+      && (warehouse === "all" || row.warehouse === warehouse);
+  }), [keyword, owner, warehouse]);
+
+  const viewRows = useMemo(() => aggregateRows(filteredLedger, view), [filteredLedger, view]);
+  const metrics = useMemo(() => ({
+    skuCount: new Set(filteredLedger.map((row) => row.sku)).size,
+    locationCount: new Set(filteredLedger.map((row) => `${row.warehouse}|${row.location}`)).size,
+    actualQty: filteredLedger.reduce((sum, row) => sum + row.actualQty, 0),
+    lockedQty: filteredLedger.reduce((sum, row) => sum + row.lockedQty, 0),
+    availableQty: filteredLedger.reduce((sum, row) => sum + row.availableQty, 0),
+  }), [filteredLedger]);
+
+  const resetFilters = () => {
+    setKeyword("");
+    setOwner("all");
+    setWarehouse("all");
   };
 
-  // 单选
-  const handleSelectItem = (id: string, checked: boolean) => {
-    if (checked) {
-      setSelectedItems([...selectedItems, id]);
-    } else {
-      setSelectedItems(selectedItems.filter(item => item !== id));
-    }
+  const renderDimensionHeaders = () => {
+    if (view === "location") return <><TableHead>库位</TableHead><TableHead className="text-right">SKU数</TableHead><TableHead className="text-right">批次数</TableHead></>;
+    return <>
+      <TableHead className="w-[150px]">SKU编码</TableHead>
+      <TableHead>商品名称</TableHead>
+      {view === "sku-batch" || view === "detail" ? <TableHead>批次号</TableHead> : null}
+      {view === "sku-location" || view === "detail" ? <TableHead>库位</TableHead> : null}
+      {view === "sku" ? <><TableHead className="text-right">库位数</TableHead><TableHead className="text-right">批次数</TableHead></> : null}
+    </>;
   };
 
-  // 统计数据
-  const totalSKU = inventoryData.length;
-  const totalStockQty = inventoryData.reduce((sum, item) => sum + item.totalStock, 0);
-  const totalStockValue = totalStockQty * 25.5; // 假设平均单价
-  const turnoverRate = 6.5;
-  const stagnantRatio = (inventoryData.filter(item => item.inventoryAge > 45).length / totalSKU * 100).toFixed(1);
-
-  // 获取库存状态Badge
-  const getStockStatusBadge = (status: InventoryItem["stockStatus"]) => <InventoryStatusBadge status={status} />;
-
-  // 获取库龄显示
-  const getInventoryAgeDisplay = (days: number) => {
-    if (days <= 7) {
-      return <span className="text-success-600">{days}天</span>;
-    } else if (days <= 30) {
-      return <span className="text-muted-foreground">{days}天</span>;
-    } else if (days <= 45) {
-      return <span className="text-warning-600">{days}天</span>;
-    } else {
-      return <span className="text-error-600">{days}天</span>;
-    }
+  const renderDimensionCells = (row: InventoryViewRow) => {
+    if (view === "location") return <>
+      <TableCell><div className="flex items-center gap-2 font-mono text-sm"><MapPin className="h-4 w-4 text-primary" />{row.location}</div></TableCell>
+      <TableCell className="text-right tabular-nums">{row.skuCount}</TableCell>
+      <TableCell className="text-right tabular-nums">{row.batchCount}</TableCell>
+    </>;
+    return <>
+      <TableCell>
+        <a
+          href="#"
+          className="font-mono text-primary hover:underline text-sm"
+          onClick={(e) => {
+            e.preventDefault();
+            if (row.sku) {
+              onNavigate(`/inventory/detail/${row.sku}`);
+            }
+          }}
+        >
+          {row.sku}
+        </a>
+      </TableCell>
+      <TableCell>{row.productName}</TableCell>
+      {view === "sku-batch" || view === "detail" ? <TableCell className="font-mono text-sm">{row.batchNo}</TableCell> : null}
+      {view === "sku-location" || view === "detail" ? <TableCell className="font-mono text-sm">{row.location}</TableCell> : null}
+      {view === "sku" ? <><TableCell className="text-right tabular-nums">{row.skuCount ? new Set(filteredLedger.filter((item) => item.sku === row.sku && item.warehouse === row.warehouse).map((item) => item.location)).size : 0}</TableCell><TableCell className="text-right tabular-nums">{row.batchCount}</TableCell></> : null}
+    </>;
   };
 
   return (
     <WMSLayout title="库存查询" currentPath="/inventory/query" onNavigate={onNavigate}>
-      <div className="p-6 space-y-4">
-        {/* 顶部统计卡片 */}
-        <div className="grid grid-cols-5 gap-4">
-          <KpiCard label="总SKU数" value={totalSKU} unit="个" />
-          <KpiCard label="总库存件数" value={totalStockQty.toLocaleString()} unit="件" />
-          <KpiCard label="总库存货值" value={`$${totalStockValue.toLocaleString()}`} helper="+8.2%" tone="success" />
-          <KpiCard label="库存周转率" value={turnoverRate} unit="次/月" />
-          <KpiCard label="呆滞库存占比" value={`${stagnantRatio}%`} helper="-2.1%" tone="warning" />
-        </div>
+      <ListPageLayout
+        header={
+          <PageHeader
+            title="库存查询"
+            description="同一份库存台账按不同业务维度汇总；维度越细，越接近实际库内作业。"
+            actions={
+              <Button variant="outline" onClick={() => toast.success(`已生成${viewConfigs[view].label}导出任务`)}>
+                <Download className="mr-2 h-4 w-4" />
+                导出当前视图
+              </Button>
+            }
+          />
+        }
+        kpis={
+          <KpiGrid columns={5}>
+            <KpiCard label="SKU数" value={metrics.skuCount} unit="个" />
+            <KpiCard label="库位数" value={metrics.locationCount} unit="个" />
+            <KpiCard label="实际库存" value={metrics.actualQty.toLocaleString()} unit="件" />
+            <KpiCard label="锁定库存" value={metrics.lockedQty.toLocaleString()} unit="件" tone={metrics.lockedQty > 0 ? "warning" : "muted"} />
+            <KpiCard label="可用库存" value={metrics.availableQty.toLocaleString()} unit="件" tone="success" />
+          </KpiGrid>
+        }
+        filters={
+          <div className="space-y-4">
+            <Tabs value={view} onValueChange={(value) => setView(value as ViewType)} className="w-full overflow-x-auto pb-1">
+              <TabsList className="w-max">
+                {(Object.entries(viewConfigs) as [ViewType, typeof viewConfigs[ViewType]][]).map(([key, config]) => (
+                  <TabsTrigger
+                    key={key}
+                    value={key}
+                    className="group gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    {config.label}
+                    <span className="text-xs font-normal text-muted-foreground group-data-[state=active]:text-primary-foreground/80 xl:inline">
+                      ({config.scope})
+                    </span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
-        {/* 筛选栏 */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-12 gap-3">
-              {/* 搜索框 */}
-              <div className="col-span-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="SKU编码 / 商品名称"
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索SKU、商品名称、批次号或库位" className="pl-9" />
               </div>
-
-              {/* 客户筛选 */}
-              <div className="col-span-2">
-                <Select value={customerFilter} onValueChange={setCustomerFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="客户名称" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部客户</SelectItem>
-                    <SelectItem value="维他很忙">维他很忙</SelectItem>
-                    <SelectItem value="跨境小王">跨境小王</SelectItem>
-                    <SelectItem value="电商老李">电商老李</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 库存状态筛选 */}
-              <div className="col-span-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="库存状态" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部状态</SelectItem>
-                    <SelectItem value="正常">正常</SelectItem>
-                    <SelectItem value="不足">库存不足</SelectItem>
-                    <SelectItem value="缺货">缺货</SelectItem>
-                    <SelectItem value="超储">超储</SelectItem>
-                    <SelectItem value="呆滞">呆滞</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 预警筛选 */}
-              <div className="col-span-2">
-                <Select value={alertFilter} onValueChange={setAlerFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="库存预警" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">全部</SelectItem>
-                    <SelectItem value="insufficient">安全库存不足</SelectItem>
-                    <SelectItem value="stagnant">呆滞库存</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* 显示零库存 */}
-              <div className="col-span-1 flex items-center justify-center">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={showZeroStock}
-                    onCheckedChange={(checked) => setShowZeroStock(checked as boolean)}
-                  />
-                  <span className="text-sm">零库存</span>
-                </label>
-              </div>
-
-              {/* 重置按钮 */}
-              <div className="col-span-1">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    setSearchKeyword("");
-                    setCustomerFilter("all");
-                    setStatusFilter("all");
-                    setAlerFilter("all");
-                    setShowZeroStock(false);
-                  }}
-                >
-                  <RefreshCcw className="w-4 h-4" />
-                </Button>
-              </div>
-
-              {/* 导出按钮 */}
-              <div className="col-span-1">
-                <Button variant="outline" className="w-full">
-                  <Download className="w-4 h-4 mr-2" />
-                  导出
-                </Button>
-              </div>
+              <Select value={owner} onValueChange={setOwner}>
+                <SelectTrigger className="w-full lg:w-[180px]"><SelectValue placeholder="货主" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部货主</SelectItem>
+                  <SelectItem value="维他很忙">维他很忙</SelectItem>
+                  <SelectItem value="跨境小王">跨境小王</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={warehouse} onValueChange={setWarehouse}>
+                <SelectTrigger className="w-full lg:w-[180px]"><SelectValue placeholder="仓库" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全部仓库</SelectItem>
+                  <SelectItem value="洛杉矶仓">洛杉矶仓</SelectItem>
+                  <SelectItem value="安大略仓">安大略仓</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" onClick={resetFilters}><RefreshCcw className="mr-2 h-4 w-4" />重置</Button>
             </div>
-
-            {/* 批量操作栏 */}
-            {selectedItems.length > 0 && (
-              <div className="mt-4 flex items-center justify-between p-3 bg-primary-50 border border-primary-200 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={true}
-                    onCheckedChange={() => setSelectedItems([])}
-                  />
-                  <span className="text-sm text-primary-700">
-                    已选择 <strong>{selectedItems.length}</strong> 项
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Download className="w-4 h-4 mr-2" />
-                    批量导出
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Lock className="w-4 h-4 mr-2" />
-                    批量冻结
-                  </Button>
-                </div>
+          </div>
+        }
+        table={
+          <DataTableShell
+            title={
+              <div className="flex items-center gap-2">
+                <Layers3 className="h-4 w-4 text-primary" />
+                {viewConfigs[view].label}
+                <Badge variant="outline">{viewConfigs[view].scope}</Badge>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 数据表格 */}
-        <DataTableShell>
+            }
+            description={viewConfigs[view].description}
+            pagination={
+              viewRows.length > 0 ? (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                  <span>共 {viewRows.length} 条，当前显示全部结果</span>
+                  <span>实际库存 = 锁定库存 + 可用库存</span>
+                </div>
+              ) : null
+            }
+          >
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedItems.length === filteredData.length && filteredData.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead className="w-[140px]">SKU编码</TableHead>
-                    <TableHead className="w-[200px]">商品信息</TableHead>
-                    <TableHead className="w-[120px]">客户名称</TableHead>
-                    <TableHead className="w-[100px] text-right">总库存</TableHead>
-                    <TableHead className="w-[100px] text-right">可用库存</TableHead>
-                    <TableHead className="w-[100px] text-right">冻结库存</TableHead>
-                    <TableHead className="w-[100px] text-right">待检库存</TableHead>
-                    <TableHead className="w-[100px] text-right">在途库存</TableHead>
-                    <TableHead className="w-[100px] text-right">安全库存</TableHead>
-                    <TableHead className="w-[100px]">库存状态</TableHead>
-                    <TableHead className="w-[100px]">库位数量</TableHead>
-                    <TableHead className="w-[100px]">最后入库</TableHead>
-                    <TableHead className="w-[100px]">最后出库</TableHead>
-                    <TableHead className="w-[80px]">库龄</TableHead>
-                    <TableHead className="w-[120px] text-right">操作</TableHead>
-                  </TableRow>
+                  <DataTableHeaderRow>
+                    <TableHead>货主</TableHead>
+                    <TableHead>仓库</TableHead>
+                    {renderDimensionHeaders()}
+                    <TableHead className="text-right">实际库存</TableHead>
+                    <TableHead className="text-right">锁定库存</TableHead>
+                    <TableHead className="text-right">可用库存</TableHead>
+                    {view === "sku" ? <TableHead className="text-right">操作</TableHead> : null}
+                  </DataTableHeaderRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredData.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedItems.includes(item.id)}
-                          onCheckedChange={(checked) => handleSelectItem(item.id, checked as boolean)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-mono text-sm">{item.skuCode}</span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {item.imageUrl ? (
-                            <ImageWithFallback
-                              src={item.imageUrl}
-                              alt={item.productName}
-                              className="w-10 h-10 rounded object-cover border"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded border bg-muted flex items-center justify-center">
-                              <ImageIcon className="w-5 h-5 text-muted-foreground" />
-                            </div>
-                          )}
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium">{item.productName}</span>
-                            <span className="text-xs text-muted-foreground">{item.productNameEn}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">{item.customerName}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-sm font-medium">{item.totalStock.toLocaleString()}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-sm text-success-600">{item.availableStock.toLocaleString()}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.frozenStock > 0 ? (
-                          <span className="text-sm text-warning-600 flex items-center justify-end gap-1">
-                            <Snowflake className="w-3 h-3" />
-                            {item.frozenStock.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.qualityCheckStock > 0 ? (
-                          <span className="text-sm text-info-600">{item.qualityCheckStock.toLocaleString()}</span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.inTransitStock > 0 ? (
-                          <span className="text-sm text-muted-foreground">{item.inTransitStock.toLocaleString()}</span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className="text-sm text-muted-foreground">{item.safetyStock.toLocaleString()}</span>
-                      </TableCell>
-                      <TableCell>
-                        {getStockStatusBadge(item.stockStatus)}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {item.locationCount > 0 ? `${item.locationCount}个库位` : "-"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">{item.lastInboundDate}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">{item.lastOutboundDate}</span>
-                      </TableCell>
-                      <TableCell>
-                        {getInventoryAgeDisplay(item.inventoryAge)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onNavigate(`/inventory/detail/${item.skuCode}`)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
+                  {viewRows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{row.owner}</TableCell>
+                      <TableCell>{row.warehouse}</TableCell>
+                      {renderDimensionCells(row)}
+                      <QuantityCell value={row.actualQty} />
+                      <QuantityCell value={row.lockedQty} tone="locked" />
+                      <QuantityCell value={row.availableQty} tone="available" />
+                      {view === "sku" ? (
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" onClick={() => onNavigate(`/inventory/detail/${row.sku}`)}>
                             查看明细
                           </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => alert(`冻结库存: ${item.skuCode}`)}>
-                                <Lock className="w-4 h-4 mr-2" />
-                                冻结库存
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => alert(`库存调整: ${item.skuCode}`)}>
-                                <Package className="w-4 h-4 mr-2" />
-                                库存调整
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => alert(`导出库存明细: ${item.skuCode}`)}>
-                                <Download className="w-4 h-4 mr-2" />
-                                导出明细
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
+                        </TableCell>
+                      ) : null}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
-
-            {/* 空状态 */}
-            {filteredData.length === 0 && (
+            {viewRows.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-                <Package className="w-16 h-16 mb-4 opacity-20" />
-                <p className="text-lg mb-2">暂无库存数据</p>
-                <p className="text-sm">调整筛选条件或检查是否有库存</p>
+                <Package className="mb-3 h-12 w-12 opacity-20" />
+                <p className="font-medium">暂无匹配库存</p>
+                <p className="mt-1 text-sm">请调整关键词、货主或仓库筛选条件</p>
               </div>
-            )}
-        </DataTableShell>
-
-        {/* 分页 */}
-        {filteredData.length > 0 && (
-          <Card>
-            <CardContent className="py-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  显示 <span className="font-medium">{filteredData.length}</span> 条结果，共 <span className="font-medium">{inventoryData.length}</span> 条
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled>
-                    上一页
-                  </Button>
-                  <Button variant="outline" size="sm" disabled>
-                    下一页
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+            ) : null}
+          </DataTableShell>
+        }
+      />
     </WMSLayout>
   );
 }

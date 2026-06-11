@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "../components/ui/select";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
+import { DataTableHeaderRow, StatusBadge } from "../components/business";
+import { packingTaskStatusMap } from "../configs/wmsStatusMap";
 import {
   Search, RefreshCcw, Download, Package, Clock, Play, CheckCircle
 } from "lucide-react";
@@ -78,31 +80,21 @@ export default function PackingTaskListPage({ onNavigate }: PackingTaskListPageP
   const [statusFilter, setStatusFilter] = useState("all");
 
   const filteredData = mockPackingTasks.filter(item => {
-    if (searchKeyword && !item.orderNo.toLowerCase().includes(searchKeyword.toLowerCase())) {
-      return false;
+    if (searchKeyword) {
+      const keyword = searchKeyword.toLowerCase();
+      const searchableText = [
+        item.orderNo,
+        item.customerName,
+        item.courier || "",
+        item.trackingNo || "",
+        item.packer?.name || "",
+        item.packageSize || "",
+      ].join(" ").toLowerCase();
+      if (!searchableText.includes(keyword)) return false;
     }
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     return true;
   });
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "待打包":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">待打包</Badge>;
-      case "打包中":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">
-          <Play className="w-3 h-3 mr-1" />
-          打包中
-        </Badge>;
-      case "已打包":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          已打包
-        </Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   const totalTasks = mockPackingTasks.length;
   const pendingTasks = mockPackingTasks.filter(t => t.status === "待打包").length;
@@ -130,9 +122,9 @@ export default function PackingTaskListPage({ onNavigate }: PackingTaskListPageP
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">待打包</div>
-                  <div className="text-3xl font-medium text-gray-600">{pendingTasks}</div>
+                  <div className="text-3xl font-medium text-muted-foreground">{pendingTasks}</div>
                 </div>
-                <Clock className="w-12 h-12 text-gray-600 opacity-20" />
+                <Clock className="w-12 h-12 text-muted-foreground opacity-20" />
               </div>
             </CardContent>
           </Card>
@@ -168,7 +160,7 @@ export default function PackingTaskListPage({ onNavigate }: PackingTaskListPageP
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
-                    placeholder="订单号"
+                    placeholder="订单号 / 客户 / 快递 / 运单号 / 打包员"
                     value={searchKeyword}
                     onChange={(e) => setSearchKeyword(e.target.value)}
                     className="pl-9"
@@ -203,7 +195,7 @@ export default function PackingTaskListPage({ onNavigate }: PackingTaskListPageP
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <DataTableHeaderRow className="bg-muted/50">
                   <TableHead>订单号</TableHead>
                   <TableHead>客户名称</TableHead>
                   <TableHead>SKU数</TableHead>
@@ -216,18 +208,31 @@ export default function PackingTaskListPage({ onNavigate }: PackingTaskListPageP
                   <TableHead>尺寸</TableHead>
                   <TableHead>打包时间</TableHead>
                   <TableHead className="text-right">操作</TableHead>
-                </TableRow>
+                </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
                 {filteredData.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell><span className="font-mono text-sm">{item.orderNo}</span></TableCell>
+                    <TableCell>
+                      <a
+                        href="#"
+                        className="font-mono text-primary hover:underline text-sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          onNavigate("/outbound/detail");
+                        }}
+                      >
+                        {item.orderNo}
+                      </a>
+                    </TableCell>
                     <TableCell>{item.customerName}</TableCell>
                     <TableCell>{item.skuCount}个</TableCell>
                     <TableCell>{item.totalQty}件</TableCell>
                     <TableCell>{item.courier || "-"}</TableCell>
                     <TableCell>{item.trackingNo ? <span className="font-mono text-sm">{item.trackingNo}</span> : "-"}</TableCell>
-                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                    <TableCell>
+                      <StatusBadge {...packingTaskStatusMap[item.status]} />
+                    </TableCell>
                     <TableCell>
                       {item.packer ? (
                         <div className="flex items-center gap-2">
@@ -248,7 +253,13 @@ export default function PackingTaskListPage({ onNavigate }: PackingTaskListPageP
                         </Button>
                       )}
                       {item.status !== "待打包" && (
-                        <Button variant="ghost" size="sm">详情</Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onNavigate("/outbound/detail")}
+                        >
+                          详情
+                        </Button>
                       )}
                     </TableCell>
                   </TableRow>

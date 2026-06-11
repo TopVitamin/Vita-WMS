@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { WMSLayout } from "../components/layouts/WMSLayout";
-import { ExceptionDialog } from "../components/business";
+import { DataTableHeaderRow, ExceptionDialog, QuantityProgress, ScanInputPanel, WorkflowPageLayout, WorkflowStepBar } from "../components/business";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -30,6 +30,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
+import { createOutboundPackageFromReview } from "../services/mock";
 
 interface OutboundCheckPageProps {
   onNavigate?: (path: string) => void;
@@ -435,10 +436,10 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
   };
   
   // 确认称重并装箱
-  const handleConfirmWeight = () => {
+  const handleConfirmWeight = (options?: { skipWeight?: boolean }) => {
     if (!pendingBox) return;
     
-    const weight = weightInput ? parseFloat(weightInput) : undefined;
+    const weight = options?.skipWeight ? undefined : weightInput ? parseFloat(weightInput) : undefined;
     
     const finalBox: PackingBox = {
       ...pendingBox,
@@ -446,8 +447,20 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
     };
     
     setPackedBoxes([...packedBoxes, finalBox]);
+    const outboundPackage = createOutboundPackageFromReview({
+      boxNo: finalBox.boxNo,
+      orderNo: finalBox.orderNo,
+      customer: finalBox.customer,
+      items: finalBox.items.map((item) => ({ sku: item.sku, qty: item.qty })),
+      weight,
+      operator: "复核员",
+    });
     
-    toast.success(`装箱完成！箱号：${finalBox.boxNo}`);
+    toast.success(
+      weight
+        ? `装箱完成！${outboundPackage.packageNo} 已进入待出库`
+        : `装箱完成！${outboundPackage.packageNo} 已进入待称重`
+    );
     
     // 重置状态
     setCurrentOrder(null);
@@ -563,6 +576,13 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
         };
         
         setPackedBoxes([...packedBoxes, newBox]);
+        const outboundPackage = createOutboundPackageFromReview({
+          boxNo: newBox.boxNo,
+          orderNo: matchedOrder.orderNo,
+          customer: matchedOrder.customer,
+          items: newBox.items.map((boxItem) => ({ sku: boxItem.sku, qty: boxItem.qty })),
+          operator: "复核员",
+        });
         
         // 更新统计
         setSingleModeStats({
@@ -570,9 +590,9 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
           avgTime: 3,
         });
         
-        toast.success(`✨ 复核完成！箱号：${autoBoxNo}`);
+        toast.success(`复核完成！${outboundPackage.packageNo} 已进入待称重`);
         setTimeout(() => {
-          toast.success(`📄 面单已自动打印`);
+          toast.success("面单已自动打印");
         }, 300);
       }, 500);
       
@@ -600,7 +620,30 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
   
   return (
     <WMSLayout title="出库复核" currentPath="/outbound/check" onNavigate={onNavigate}>
-      <div className="p-6 space-y-6">
+      <WorkflowPageLayout
+        title="出库复核"
+        description="按订单、出库箱、SKU 扫描完成复核，并登记异常和称重打印。"
+        steps={
+          checkMode === "standard" ? (
+            <WorkflowStepBar
+              currentStepId={currentStep}
+              steps={[
+                { id: "order", label: "扫描订单", description: "订单/波次" },
+                { id: "box", label: "确定箱号", description: "出库箱" },
+                { id: "check", label: "扫描复核", description: "SKU条码" },
+              ]}
+            />
+          ) : (
+            <WorkflowStepBar
+              currentStepId={singleModeStep}
+              steps={[
+                { id: "wave", label: "扫描波次", description: "限定范围" },
+                { id: "scan", label: "扫描商品", description: "自动匹配" },
+              ]}
+            />
+          )
+        }
+      >
         {/* 模式切换 */}
         <Card>
           <CardContent className="pt-6">
@@ -637,17 +680,14 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>订单号</Label>
-                      <Input
-                        ref={orderInputRef}
-                        value={orderInput}
-                        onChange={(e) => setOrderInput(e.target.value)}
-                        onKeyDown={handleOrderScan}
-                        placeholder="按 Enter 确认"
-                        className="text-lg h-14 font-mono"
-                      />
-                    </div>
+                    <ScanInputPanel
+                      label="订单号"
+                      value={orderInput}
+                      inputRef={orderInputRef}
+                      onChange={setOrderInput}
+                      onEnter={handleOrderScan}
+                      placeholder="按 Enter 确认"
+                    />
                     
                     <div className="p-3 bg-muted/50 rounded-lg text-sm space-y-1">
                       <p className="text-muted-foreground">提示：</p>
@@ -658,7 +698,7 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                     <div className="p-3 bg-info/10 border border-info/20 rounded-lg text-sm">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-info" />
-                        <div className="text-info-foreground">
+                        <div className="text-info-700">
                           <p>测试订单号：</p>
                           <p className="font-mono mt-1">SO-2024-001</p>
                           <p className="font-mono">SO-2024-002</p>
@@ -682,25 +722,18 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>出库箱号</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          ref={boxInputRef}
-                          value={boxInput}
-                          onChange={(e) => setBoxInput(e.target.value)}
-                          onKeyDown={handleBoxScan}
-                          placeholder="扫描箱号或快递单号"
-                          className="flex-1 text-lg h-12 font-mono"
-                        />
-                        <Button onClick={handleGenerateBox} size="lg">
-                          <PackagePlus className="w-4 h-4 mr-2" />
-                          新箱号
-                        </Button>
-                      </div>
-                    </div>
+                    <ScanInputPanel
+                      label="出库箱号"
+                      value={boxInput}
+                      inputRef={boxInputRef}
+                      onChange={setBoxInput}
+                      onEnter={handleBoxScan}
+                      placeholder="扫描箱号或快递单号"
+                      actionLabel="生成新箱号"
+                      onAction={handleGenerateBox}
+                    />
                     
-                    <div className="p-3 bg-info/10 border border-info/20 rounded-lg text-sm text-info-foreground">
+                    <div className="rounded-lg border border-info/20 bg-info/10 p-3 text-sm text-info-700">
                       点击"新箱号"自动生成系统箱号
                     </div>
                   </CardContent>
@@ -720,17 +753,14 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>扫描商品条码</Label>
-                      <Input
-                        ref={skuInputRef}
-                        value={skuInput}
-                        onChange={(e) => setSkuInput(e.target.value)}
-                        onKeyDown={handleSkuScan}
-                        placeholder={batchMode ? "扫描后输入数量" : "扫描自动+1"}
-                        className="text-lg h-14 font-mono"
-                      />
-                    </div>
+                    <ScanInputPanel
+                      label="扫描商品条码"
+                      value={skuInput}
+                      inputRef={skuInputRef}
+                      onChange={setSkuInput}
+                      onEnter={handleSkuScan}
+                      placeholder={batchMode ? "扫描后输入数量" : "扫描自动+1"}
+                    />
                     
                     {batchMode && skuInput && (
                       <div className="space-y-2">
@@ -809,14 +839,7 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                         {currentOrder.checkedItems}
                       </span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">进度</span>
-                      <span>
-                        {currentOrder.totalItems > 0 
-                          ? ((currentOrder.checkedItems / currentOrder.totalItems) * 100).toFixed(0) 
-                          : 0}%
-                      </span>
-                    </div>
+                    <QuantityProgress current={currentOrder.checkedItems} total={currentOrder.totalItems} />
                   </CardContent>
                 </Card>
               )}
@@ -895,14 +918,14 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                       <div className="border rounded-lg overflow-hidden">
                         <Table>
                           <TableHeader>
-                            <TableRow>
+                            <DataTableHeaderRow>
                               <TableHead>SKU</TableHead>
                               <TableHead>产品名称</TableHead>
                               <TableHead>库位</TableHead>
                               <TableHead className="text-right">需求</TableHead>
                               <TableHead className="text-right">已复核</TableHead>
                               <TableHead className="text-center">状态</TableHead>
-                            </TableRow>
+                            </DataTableHeaderRow>
                           </TableHeader>
                           <TableBody>
                             {currentOrder.items.map((item) => (
@@ -1076,7 +1099,7 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                       <div className="p-4 bg-info/10 border border-info/20 rounded-lg">
                         <div className="flex items-start gap-3">
                           <AlertCircle className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-                          <div className="text-sm text-info-foreground space-y-1">
+                          <div className="space-y-1 text-sm text-info-700">
                             <p>操作流程：</p>
                             <ul className="list-disc list-inside space-y-0.5 ml-2">
                               <li>先扫描波次号，系统加载该波次的单品订单</li>
@@ -1210,7 +1233,7 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                     <div className="border rounded-lg overflow-hidden">
                       <Table>
                         <TableHeader>
-                          <TableRow>
+                          <DataTableHeaderRow>
                             <TableHead>箱号</TableHead>
                             <TableHead>订单号</TableHead>
                             <TableHead>客户</TableHead>
@@ -1219,7 +1242,7 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
                             <TableHead className="text-right">数量</TableHead>
                             <TableHead>处理时间</TableHead>
                             <TableHead className="text-center">状态</TableHead>
-                          </TableRow>
+                          </DataTableHeaderRow>
                         </TableHeader>
                         <TableBody>
                           {packedBoxes.slice().reverse().map((box, idx) => (
@@ -1260,7 +1283,7 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
             </div>
           </div>
         )}
-      </div>
+      </WorkflowPageLayout>
       
       {/* 异常处理对话框 */}
       <ExceptionDialog
@@ -1385,11 +1408,11 @@ export default function OutboundCheckPage({ onNavigate }: OutboundCheckPageProps
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setWeightInput("");
-              handleConfirmWeight();
+              handleConfirmWeight({ skipWeight: true });
             }}>
               跳过称重
             </Button>
-            <Button onClick={handleConfirmWeight}>
+            <Button onClick={() => handleConfirmWeight()}>
               <Printer className="w-4 h-4 mr-2" />
               确认并打印
             </Button>

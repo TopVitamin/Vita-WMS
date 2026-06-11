@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -62,14 +63,14 @@ export default function StocktakingWorkspacePage({ onNavigate }: StocktakingWork
 
   // 确认盘点
   const handleConfirmCount = () => {
-    alert(`确认盘点：${currentItem?.productName}，实盘数量：${inputQty || currentItem?.bookQty}`);
+    toast.success(`确认盘点：${currentItem?.productName}，实盘数量：${inputQty || currentItem?.bookQty}`);
     if (currentIndex < locationItems.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setScannedBarcode("");
       setInputQty("");
     } else {
       // 完成当前库位，进入下一个库位
-      alert("当前库位盘点完成！");
+      toast.success("当前库位盘点完成");
       setShowLocationInput(true);
       setCurrentIndex(0);
       setScannedBarcode("");
@@ -79,12 +80,12 @@ export default function StocktakingWorkspacePage({ onNavigate }: StocktakingWork
 
   // 上报异常
   const handleReportIssue = () => {
-    alert(`上报异常：${currentItem?.productName}`);
+    toast.warning(`已上报异常：${currentItem?.productName}`);
   };
 
   // 跳过
   const handleSkip = () => {
-    alert(`跳过当前商品：${currentItem?.productName}`);
+    toast.info(`已跳过当前商品：${currentItem?.productName}`);
     if (currentIndex < locationItems.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setScannedBarcode("");
@@ -218,7 +219,7 @@ export default function StocktakingWorkspacePage({ onNavigate }: StocktakingWork
                     {/* 账面数量（非盲盘模式显示） */}
                     <div className="p-4 bg-info-50 border border-info-200 rounded-lg">
                       <div className="text-sm text-info-700 mb-2">账面数量（参考）</div>
-                      <div className="text-4xl font-bold text-info-700 text-center">
+                      <div className="text-center text-4xl font-semibold text-info-700 tabular-nums">
                         {currentItem.bookQty}
                         <span className="text-xl font-normal text-info-600 ml-3">件</span>
                       </div>
@@ -228,7 +229,7 @@ export default function StocktakingWorkspacePage({ onNavigate }: StocktakingWork
                   {/* 输入区域 */}
                   <div className="space-y-3">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">扫描商品条码（可选）</label>
+                      <label className="text-sm">扫描商品条码（可选）</label>
                       <Input
                         placeholder="扫描商品条码进行校验"
                         value={scannedBarcode}
@@ -238,7 +239,7 @@ export default function StocktakingWorkspacePage({ onNavigate }: StocktakingWork
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">
+                      <label className="text-sm">
                         实盘数量 <span className="text-error-500">*</span>
                       </label>
                       <Input

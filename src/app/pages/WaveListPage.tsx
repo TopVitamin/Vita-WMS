@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
@@ -18,116 +17,77 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { WMSLayout } from "../components/layouts/WMSLayout";
-
-// 模拟数据
-const waveOrders = [
-  {
-    id: "WAVE-2024-0028",
-    orderCount: 3,
-    skuCount: 8,
-    totalQty: 120,
-    waveType: "multi_mixed",
-    pickedQty: 120,
-    pickProgress: 100,
-    picker: "张三",
-    status: "picked",
-    createdAt: "2024-10-20 14:20",
-    createdBy: "李四",
-  },
-  {
-    id: "WAVE-2024-0027",
-    orderCount: 5,
-    skuCount: 12,
-    totalQty: 85,
-    waveType: "multi_mixed",
-    pickedQty: 60,
-    pickProgress: 70.6,
-    picker: "李四",
-    status: "picking",
-    createdAt: "2024-10-15 11:30",
-    createdBy: "张三",
-  },
-  {
-    id: "WAVE-2024-0026",
-    orderCount: 8,
-    skuCount: 15,
-    totalQty: 200,
-    waveType: "multi_mixed",
-    pickedQty: 0,
-    pickProgress: 0,
-    picker: "王五",
-    status: "pending",
-    createdAt: "2024-10-10 09:15",
-    createdBy: "demo",
-  },
-  {
-    id: "WAVE-2024-0025",
-    orderCount: 2,
-    skuCount: 2,
-    totalQty: 10,
-    waveType: "single_multi",
-    pickedQty: 0,
-    pickProgress: 0,
-    picker: "-",
-    status: "pending",
-    createdAt: "2024-10-08 16:40",
-    createdBy: "demo",
-  },
-  {
-    id: "WAVE-2024-0024",
-    orderCount: 10,
-    skuCount: 25,
-    totalQty: 300,
-    waveType: "multi_mixed",
-    pickedQty: 300,
-    pickProgress: 100,
-    picker: "赵六",
-    status: "picked",
-    createdAt: "2024-10-05 10:20",
-    createdBy: "张三",
-  },
-  {
-    id: "WAVE-2024-0023",
-    orderCount: 1,
-    skuCount: 1,
-    totalQty: 5,
-    waveType: "single_single",
-    pickedQty: 0,
-    pickProgress: 0,
-    picker: "-",
-    status: "pending",
-    createdAt: "2024-10-03 14:15",
-    createdBy: "李四",
-  },
-  {
-    id: "WAVE-2024-0022",
-    orderCount: 4,
-    skuCount: 10,
-    totalQty: 150,
-    waveType: "multi_mixed",
-    pickedQty: 80,
-    pickProgress: 53.3,
-    picker: "张三",
-    status: "picking",
-    createdAt: "2024-10-01 09:30",
-    createdBy: "demo",
-  },
-];
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { waveStatusMap, orderStructureStatusMap } from "../configs/wmsStatusMap";
+import {
+  createPickingWorkFromWave,
+  listWaveOrders,
+  setSelectedWaveId,
+  startPickingWork,
+  type WaveOrder,
+} from "../services/mock";
+import { toast } from "sonner";
 
 interface WaveListPageProps {
   onNavigate?: (path: string) => void;
 }
 
 export default function WaveListPage({ onNavigate }: WaveListPageProps) {
+  const [waveOrders, setWaveOrders] = useState<WaveOrder[]>(() => listWaveOrders());
   const [selectedWaves, setSelectedWaves] = useState<string[]>([]);
+  const [activeStatus, setActiveStatus] = useState("all");
+  const [searchField, setSearchField] = useState("all");
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [waveTypeFilter, setWaveTypeFilter] = useState("all");
+  const [pickerFilter, setPickerFilter] = useState("all");
+  const [creatorFilter, setCreatorFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
+  const statusTabs = [
+    { value: "all", label: "全部", statuses: [] },
+    { value: "created", label: "已创建", statuses: ["created"] },
+    { value: "assigned", label: "已分配", statuses: ["assigned"] },
+    { value: "picking", label: "拣货中", statuses: ["picking"] },
+    { value: "picked", label: "已拣货", statuses: ["picked"] },
+    { value: "sorting", label: "分拣中", statuses: ["sorting"] },
+    { value: "sorted", label: "已分拣", statuses: ["sorted"] },
+    { value: "completed", label: "已完成", statuses: ["completed"] },
+    { value: "exception", label: "异常/取消", statuses: ["exception", "cancelled"] },
+  ];
+
+  const activeTab = statusTabs.find((tab) => tab.value === activeStatus) ?? statusTabs[0];
+  const getTabCount = (statuses: string[]) => {
+    if (statuses.length === 0) return waveOrders.length;
+    return waveOrders.filter((wave) => statuses.includes(wave.status)).length;
+  };
+
+  const filteredWaves = waveOrders.filter((wave) => {
+    if (activeTab.statuses.length > 0 && !activeTab.statuses.includes(wave.status)) return false;
+    if (waveTypeFilter !== "all" && wave.waveType !== waveTypeFilter) return false;
+    if (pickerFilter === "unassigned" && wave.picker) return false;
+    if (pickerFilter !== "all" && pickerFilter !== "unassigned" && wave.picker !== pickerFilter) return false;
+    if (creatorFilter !== "all" && wave.createdBy !== creatorFilter) return false;
+    if (searchKeyword.trim()) {
+      const keyword = searchKeyword.trim().toLowerCase();
+      const fieldValues: Record<string, string> = {
+        wave_no: wave.id,
+        outbound_no: wave.outboundOrderIds.join(" "),
+        picking_no: wave.pickingWorkNos.join(" "),
+        picker: wave.picker || "",
+        creator: wave.createdBy,
+        all: [wave.id, wave.outboundOrderIds.join(" "), wave.pickingWorkNos.join(" "), wave.picker || "", wave.createdBy].join(" "),
+      };
+      if (!fieldValues[searchField].toLowerCase().includes(keyword)) return false;
+    }
+    return true;
+  });
+
   const handleSelectAll = () => {
-    if (selectedWaves.length === waveOrders.length) {
+    if (selectedWaves.length === filteredWaves.length) {
       setSelectedWaves([]);
     } else {
-      setSelectedWaves(waveOrders.map((wave) => wave.id));
+      setSelectedWaves(filteredWaves.map((wave) => wave.id));
     }
   };
 
@@ -140,84 +100,40 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
   // 检查选中波次是否都是待拣货状态
   const canBatchAssignPicker = () => {
     const selected = waveOrders.filter((wave) => selectedWaves.includes(wave.id));
-    return selected.length > 0 && selected.every((wave) => wave.status === "pending");
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      pending: { 
-        label: "待拣货", 
-        bg: "hsl(40 96% 95%)", 
-        text: "hsl(40 96% 35%)",
-        border: "hsl(40 96% 85%)"
-      },
-      picking: { 
-        label: "拣货中", 
-        bg: "hsl(267 84% 95%)", 
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)"
-      },
-      picked: { 
-        label: "已拣货", 
-        bg: "hsl(142 76% 95%)", 
-        text: "hsl(142 76% 30%)",
-        border: "hsl(142 76% 85%)"
-      },
-    };
-    const config = statusConfig[status] || statusConfig.pending;
-    return (
-      <Badge 
-        variant="outline"
-        style={{ 
-          backgroundColor: config.bg, 
-          color: config.text,
-          borderColor: config.border
-        }}
-      >
-        {config.label}
-      </Badge>
-    );
-  };
-
-  const getWaveTypeBadge = (type: string) => {
-    const typeConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
-      single_single: { 
-        label: "单品单件", 
-        bg: "hsl(218 92% 95%)", 
-        text: "hsl(218 92% 35%)",
-        border: "hsl(218 92% 85%)"
-      },
-      single_multi: { 
-        label: "单品多件", 
-        bg: "hsl(267 84% 95%)", 
-        text: "hsl(267 84% 35%)",
-        border: "hsl(267 84% 85%)"
-      },
-      multi_mixed: { 
-        label: "多品混合", 
-        bg: "hsl(28 100% 95%)", 
-        text: "hsl(28 100% 35%)",
-        border: "hsl(28 100% 85%)"
-      },
-    };
-    const config = typeConfig[type] || typeConfig.single_single;
-    return (
-      <Badge 
-        variant="outline"
-        style={{ 
-          backgroundColor: config.bg, 
-          color: config.text,
-          borderColor: config.border
-        }}
-      >
-        {config.label}
-      </Badge>
-    );
+    return selected.length > 0 && selected.every((wave) => wave.status === "created");
   };
 
   const handleNavigate = (path: string) => {
     if (onNavigate) {
       onNavigate(path);
+    }
+  };
+
+  const openWaveDetail = (waveId: string) => {
+    setSelectedWaveId(waveId);
+    handleNavigate("/wave/detail");
+  };
+
+  const refreshWaves = () => {
+    setWaveOrders(listWaveOrders());
+  };
+
+  const handleGeneratePickingWork = (wave: WaveOrder) => {
+    const work = createPickingWorkFromWave(wave.id, { picker: wave.picker || "李四" });
+    if (work) {
+      refreshWaves();
+      toast.success(`已为波次 ${wave.id} 生成拣货单 ${work.taskNo}`);
+    }
+  };
+
+  const handleStartPicking = (wave: WaveOrder) => {
+    const work = wave.pickingWorkNos[0]
+      ? startPickingWork(wave.pickingWorkNos[0])
+      : createPickingWorkFromWave(wave.id, { picker: wave.picker || "李四" });
+    if (work) {
+      startPickingWork(work.taskNo);
+      refreshWaves();
+      toast.success(`波次 ${wave.id} 已开始拣货`);
     }
   };
 
@@ -229,37 +145,34 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
     >
       <div className="p-6 space-y-5">
         {/* Status Tabs */}
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList>
-            <TabsTrigger value="all" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              全部
-            </TabsTrigger>
-            <TabsTrigger value="pending" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              待拣货 <Badge variant="secondary">3</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="picking" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              拣货中 <Badge variant="secondary">2</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="picked" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5">
-              已拣货 <Badge variant="secondary">2</Badge>
-            </TabsTrigger>
+        <Tabs value={activeStatus} onValueChange={setActiveStatus} className="w-full">
+          <TabsList className="h-auto flex-wrap justify-start">
+            {statusTabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value} className="group gap-1 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                {tab.label}
+                <StatusTabCount count={getTabCount(tab.statuses)} inverseOnActive />
+              </TabsTrigger>
+            ))}
           </TabsList>
         </Tabs>
 
         {/* Filter Section */}
         <div className="flex items-center gap-3 flex-wrap">
-          <Select>
+          <Select value={searchField} onValueChange={setSearchField}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="波次号" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">全部字段</SelectItem>
               <SelectItem value="wave_no">波次号</SelectItem>
               <SelectItem value="outbound_no">出库单号</SelectItem>
-              <SelectItem value="order_no">订单号</SelectItem>
+              <SelectItem value="picking_no">拣货单号</SelectItem>
+              <SelectItem value="picker">拣货员</SelectItem>
+              <SelectItem value="creator">创建人</SelectItem>
             </SelectContent>
           </Select>
-          <Input placeholder="搜索..." className="w-64" />
-          <Select>
+          <Input value={searchKeyword} onChange={(event) => setSearchKeyword(event.target.value)} placeholder="搜索波次、出库单、拣货单、人员..." className="w-80" />
+          <Select value={waveTypeFilter} onValueChange={setWaveTypeFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="波次类型" />
             </SelectTrigger>
@@ -270,35 +183,42 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
               <SelectItem value="multi_mixed">多品混合</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={pickerFilter} onValueChange={setPickerFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="拣货员" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
               <SelectItem value="unassigned">未分配</SelectItem>
-              <SelectItem value="zhangsan">张三</SelectItem>
-              <SelectItem value="lisi">李四</SelectItem>
-              <SelectItem value="wangwu">王五</SelectItem>
-              <SelectItem value="zhaoliu">赵六</SelectItem>
+              <SelectItem value="张三">张三</SelectItem>
+              <SelectItem value="李四">李四</SelectItem>
+              <SelectItem value="王五">王五</SelectItem>
+              <SelectItem value="赵六">赵六</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
+          <Select value={creatorFilter} onValueChange={setCreatorFilter}>
             <SelectTrigger className="w-32">
               <SelectValue placeholder="创建人" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
               <SelectItem value="demo">demo</SelectItem>
-              <SelectItem value="zhangsan">张三</SelectItem>
-              <SelectItem value="lisi">李四</SelectItem>
+              <SelectItem value="张三">张三</SelectItem>
+              <SelectItem value="李四">李四</SelectItem>
             </SelectContent>
           </Select>
           <Button>
             <Search className="w-4 h-4" />
             搜索
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => {
+            setActiveStatus("all");
+            setSearchField("all");
+            setSearchKeyword("");
+            setWaveTypeFilter("all");
+            setPickerFilter("all");
+            setCreatorFilter("all");
+          }}>
             <Filter className="w-4 h-4" />
             重置
           </Button>
@@ -310,7 +230,7 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center gap-3">
               <Checkbox
-                checked={selectedWaves.length === waveOrders.length}
+                checked={selectedWaves.length === filteredWaves.length && filteredWaves.length > 0}
                 onCheckedChange={handleSelectAll}
               />
               <span className="text-sm text-muted-foreground">
@@ -335,10 +255,10 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
-                <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+                <DataTableHeaderRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedWaves.length === waveOrders.length}
+                      checked={selectedWaves.length === filteredWaves.length && filteredWaves.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -354,18 +274,13 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
                   <TableHead>创建时间</TableHead>
                   <TableHead>创建人</TableHead>
                   <TableHead className="text-right">操作</TableHead>
-                </TableRow>
+                </DataTableHeaderRow>
               </TableHeader>
               <TableBody>
-                {waveOrders.map((wave) => (
+                {filteredWaves.map((wave) => (
                   <TableRow
                     key={wave.id}
-                    className="hover:bg-table-row-hover transition-colors"
-                    style={{
-                      backgroundColor: selectedWaves.includes(wave.id)
-                        ? "var(--table-row-hover)"
-                        : undefined,
-                    }}
+                    className={`hover:bg-table-row-hover transition-colors ${selectedWaves.includes(wave.id) ? "bg-table-row-hover" : ""}`}
                   >
                     <TableCell>
                       <Checkbox
@@ -379,7 +294,7 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
                         className="font-mono text-primary hover:underline"
                         onClick={(e) => {
                           e.preventDefault();
-                          handleNavigate("/wave/detail");
+                          openWaveDetail(wave.id);
                         }}
                       >
                         {wave.id}
@@ -388,7 +303,7 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
                     <TableCell className="text-center">{wave.orderCount}</TableCell>
                     <TableCell className="text-center">{wave.skuCount}</TableCell>
                     <TableCell className="text-center">{wave.totalQty}</TableCell>
-                    <TableCell>{getWaveTypeBadge(wave.waveType)}</TableCell>
+                    <TableCell><StatusBadge {...orderStructureStatusMap[wave.waveType]} /></TableCell>
                     <TableCell className="text-center">
                       <span className={wave.pickedQty > 0 ? "text-success-600" : ""}>
                         {wave.pickedQty}
@@ -403,10 +318,12 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
                         <Progress value={wave.pickProgress} className="h-1.5" />
                       </div>
                     </TableCell>
-                    <TableCell className={wave.picker === "-" ? "text-muted-foreground" : ""}>
-                      {wave.picker}
+                    <TableCell className={!wave.picker ? "text-muted-foreground" : ""}>
+                      {wave.picker || "-"}
                     </TableCell>
-                    <TableCell>{getStatusBadge(wave.status)}</TableCell>
+                    <TableCell>
+                      <StatusBadge {...(waveStatusMap[wave.status] ?? waveStatusMap.pending)} />
+                    </TableCell>
                     <TableCell className="text-sm">{wave.createdAt}</TableCell>
                     <TableCell>{wave.createdBy}</TableCell>
                     <TableCell className="text-right">
@@ -414,7 +331,7 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
                         <Button 
                           variant="ghost" 
                           size="sm"
-                          onClick={() => handleNavigate("/wave/detail")}
+                          onClick={() => openWaveDetail(wave.id)}
                         >
                           <Eye className="w-4 h-4" />
                           查看
@@ -429,14 +346,18 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            {wave.status === "pending" && (
+                            {(wave.status === "created" || wave.status === "assigned") && (
                               <>
                                 <DropdownMenuItem>
                                   <UserPlus className="w-4 h-4 mr-2" />
                                   指定拣货员
                                 </DropdownMenuItem>
-                                {wave.picker !== "-" && (
-                                  <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleGeneratePickingWork(wave)}>
+                                  <Layers className="w-4 h-4 mr-2" />
+                                  生成拣货单
+                                </DropdownMenuItem>
+                                {wave.picker && (
+                                  <DropdownMenuItem onClick={() => handleStartPicking(wave)}>
                                     <Layers className="w-4 h-4 mr-2" />
                                     开始拣货
                                   </DropdownMenuItem>
@@ -469,10 +390,10 @@ export default function WaveListPage({ onNavigate }: WaveListPageProps) {
         {/* Pagination */}
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            共 {waveOrders.length} 条
+            共 {filteredWaves.length} 条
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"

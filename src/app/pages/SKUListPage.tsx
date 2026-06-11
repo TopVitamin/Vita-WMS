@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
-import { Card, CardContent } from "../components/ui/card";
 import {
   Table,
   TableBody,
@@ -33,7 +33,9 @@ import {
   MoreVertical, Barcode, Power, PowerOff, RefreshCcw,
   Package, Image as ImageIcon
 } from "lucide-react";
-import { BatchActionBar, DataTableShell, KpiCard, StockStatusBadge } from "../components/business";
+import { DataTableHeaderRow, BatchActionBar, DataTableShell, KpiCard, KpiGrid, ListPageLayout, PageHeader, StatusBadge } from "../components/business";
+import { enabledStatusMap } from "../configs/wmsStatusMap";
+import { StockStatusBadge } from "../components/wms/WmsStatusBadges";
 import { listSkus } from "../services/mock";
 import type { SkuItem } from "../types/wms";
 
@@ -85,11 +87,11 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
 
   // 批量操作
   const handleBatchExport = () => {
-    alert(`导出 ${selectedItems.length} 条SKU数据`);
+    toast.success(`已生成 ${selectedItems.length} 条SKU数据的导出任务`);
   };
 
   const handleBatchPrintBarcode = () => {
-    alert(`打印 ${selectedItems.length} 个SKU的条码`);
+    toast.success(`已发送 ${selectedItems.length} 个SKU的条码打印任务`);
   };
 
   // 统计数据
@@ -98,25 +100,24 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
   const lowStockSKU = skuData.filter(item => item.currentStock < item.safetyStock).length;
   const noStockSKU = skuData.filter(item => item.currentStock === 0).length;
 
-  // 获取库存状态Badge
-  const getStockStatusBadge = (currentStock: number, safetyStock: number) => (
-    <StockStatusBadge currentStock={currentStock} safetyStock={safetyStock} />
-  );
-
   return (
     <WMSLayout title="SKU管理" currentPath="/master-data/skus" onNavigate={onNavigate}>
-      <div className="p-6 space-y-4">
-        {/* 顶部统计卡片 */}
-        <div className="grid grid-cols-4 gap-4">
+      <ListPageLayout
+        header={
+          <PageHeader
+            title="SKU管理"
+            description="维护 SKU 基础资料、条码、客户归属和库存策略。"
+          />
+        }
+        kpis={
+          <KpiGrid columns={4}>
           <KpiCard label="总SKU数" value={totalSKU} unit="个" />
           <KpiCard label="启用中" value={activeSKU} unit="个" tone="success" />
           <KpiCard label="库存不足" value={lowStockSKU} unit="个" tone="warning" />
           <KpiCard label="零库存" value={noStockSKU} unit="个" tone="error" />
-        </div>
-
-        {/* 筛选栏 */}
-        <Card>
-          <CardContent className="pt-6">
+          </KpiGrid>
+        }
+        filters={
             <div className="grid grid-cols-12 gap-3">
               {/* 搜索框 */}
               <div className="col-span-3">
@@ -207,9 +208,8 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                 </Button>
               </div>
             </div>
-
-            {/* 批量操作栏 */}
-            <div className="mt-4">
+        }
+        batchActions={
               <BatchActionBar selectedCount={selectedItems.length}>
                 <Button variant="outline" size="sm" onClick={handleBatchExport}>
                   <Download className="w-4 h-4 mr-2" />
@@ -220,16 +220,31 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                   批量打印条码
                 </Button>
               </BatchActionBar>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 数据表格 */}
-        <DataTableShell>
+        }
+        table={
+          <DataTableShell
+          pagination={
+            filteredData.length > 0 ? (
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  显示 {filteredData.length} 条结果，共 {skuData.length} 条
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled>
+                    上一页
+                  </Button>
+                  <Button variant="outline" size="sm" disabled>
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            ) : null
+          }
+        >
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
+                  <DataTableHeaderRow className="bg-muted/50">
                     <TableHead className="w-12">
                       <Checkbox
                         checked={selectedItems.length === filteredData.length && filteredData.length > 0}
@@ -251,7 +266,7 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                     <TableHead className="w-[140px]">创建时间</TableHead>
                     <TableHead className="w-[140px]">更新时间</TableHead>
                     <TableHead className="w-[180px] text-right">操作</TableHead>
-                  </TableRow>
+                  </DataTableHeaderRow>
                 </TableHeader>
                 <TableBody>
                   {filteredData.map((item) => (
@@ -263,7 +278,16 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                         />
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono text-sm">{item.skuCode}</span>
+                        <a
+                          href="#"
+                          className="font-mono text-primary hover:underline text-sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onNavigate(`/master-data/skus/${item.id}`);
+                          }}
+                        >
+                          {item.skuCode}
+                        </a>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -279,7 +303,7 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                             </div>
                           )}
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium">{item.productName}</span>
+                            <span className="text-sm">{item.productName}</span>
                             <span className="text-xs text-muted-foreground">{item.productNameEn}</span>
                           </div>
                         </div>
@@ -307,25 +331,15 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex flex-col items-end gap-1">
-                          <span className="text-sm font-medium">{item.currentStock.toLocaleString()}</span>
-                          {getStockStatusBadge(item.currentStock, item.safetyStock)}
+                          <span className="text-sm tabular-nums">{item.currentStock.toLocaleString()}</span>
+                          <StockStatusBadge currentStock={item.currentStock} safetyStock={item.safetyStock} />
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="text-sm text-muted-foreground">{item.safetyStock.toLocaleString()}</span>
                       </TableCell>
                       <TableCell>
-                        {item.status === "启用" ? (
-                          <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">
-                            <Power className="w-3 h-3 mr-1" />
-                            启用
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">
-                            <PowerOff className="w-3 h-3 mr-1" />
-                            停用
-                          </Badge>
-                        )}
+                        <StatusBadge {...enabledStatusMap[item.status]} />
                       </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground">{item.createTime}</span>
@@ -346,7 +360,7 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => alert(`复制 SKU: ${item.skuCode}`)}
+                            onClick={() => toast.success(`已复制 SKU：${item.skuCode}`)}
                           >
                             <Copy className="w-4 h-4 mr-1" />
                             复制
@@ -358,17 +372,17 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => alert(`查看库存明细: ${item.skuCode}`)}>
+                              <DropdownMenuItem onClick={() => toast.info(`正在打开 ${item.skuCode} 的库存明细`)}>
                                 <Package className="w-4 h-4 mr-2" />
                                 查看库存明细
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => alert(`打印条码: ${item.skuCode}`)}>
+                              <DropdownMenuItem onClick={() => toast.success(`已发送 ${item.skuCode} 的条码打印任务`)}>
                                 <Barcode className="w-4 h-4 mr-2" />
                                 打印条码
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
-                                onClick={() => alert(item.status === "启用" ? `停用 SKU: ${item.skuCode}` : `启用 SKU: ${item.skuCode}`)}
+                                onClick={() => toast.success(item.status === "启用" ? `已停用 SKU：${item.skuCode}` : `已启用 SKU：${item.skuCode}`)}
                               >
                                 {item.status === "启用" ? (
                                   <>
@@ -400,29 +414,9 @@ export default function SKUListPage({ onNavigate }: SKUListPageProps) {
                 <p className="text-sm">调整筛选条件或创建新的SKU</p>
               </div>
             )}
-        </DataTableShell>
-
-        {/* 分页 */}
-        {filteredData.length > 0 && (
-          <Card>
-            <CardContent className="py-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  显示 <span className="font-medium">{filteredData.length}</span> 条结果，共 <span className="font-medium">{skuData.length}</span> 条
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" disabled>
-                    上一页
-                  </Button>
-                  <Button variant="outline" size="sm" disabled>
-                    下一页
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          </DataTableShell>
+        }
+      />
     </WMSLayout>
   );
 }

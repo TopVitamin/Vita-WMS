@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -6,6 +7,8 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow, StatusTabCount } from "../components/business";
+import { seedingWallUsageVisualMap } from "../configs/wmsVisualConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
@@ -34,8 +37,8 @@ import { EmptyState } from "../components/wms/EmptyState";
 
 // 用途类型枚举
 const USAGE_TYPES = [
-  { value: "order_seeding", label: "订单播种墙", icon: Package, color: "var(--purple-600)" },
-  { value: "collection_seeding", label: "集货播种墙", icon: Box, color: "var(--info-500)" },
+  { value: "order_seeding", label: "订单播种墙", icon: Package },
+  { value: "collection_seeding", label: "集货播种墙", icon: Box },
 ] as const;
 
 type UsageType = typeof USAGE_TYPES[number]['value'];
@@ -320,7 +323,8 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
 
   // 获取用途类型配置
   const getUsageTypeConfig = (type: UsageType) => {
-    return USAGE_TYPES.find(t => t.value === type) || USAGE_TYPES[0];
+    const config = USAGE_TYPES.find(t => t.value === type) || USAGE_TYPES[0];
+    return { ...config, visualColor: seedingWallUsageVisualMap[config.value].color };
   };
 
   // 打开编辑对话框
@@ -387,9 +391,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
 
   // 处理提交
   const handleSubmit = () => {
-    console.log("提交数据:", formData);
-    console.log("生成的格口数据:", previewSlots);
-    // 这里应该调用API保存数据
+    toast.success(editingWall ? "播种墙已更新" : `播种墙已创建，共 ${previewSlots.length} 个格口`);
     setIsCreateDialogOpen(false);
     setIsEditDialogOpen(false);
     resetForm();
@@ -397,8 +399,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
 
   // 切换启用/停用状态
   const handleToggleActive = (wall: SeedingWall) => {
-    console.log(`切换播种墙 ${wall.wallCode} 状态:`, !wall.isActive);
-    // 这里应该调用API更新状态
+    toast.success(`${wall.wallCode} 已${wall.isActive ? "停用" : "启用"}`);
   };
 
   return (
@@ -429,8 +430,9 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                 <Tabs defaultValue="basic" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="basic">基本信息</TabsTrigger>
-                    <TabsTrigger value="preview" disabled={!formData.wallCode || formData.rows < 1 || formData.columns < 1}>
-                      格口预览 ({formData.rows * formData.columns}个)
+                    <TabsTrigger className="group gap-1" value="preview" disabled={!formData.wallCode || formData.rows < 1 || formData.columns < 1}>
+                      格口预览
+                      <StatusTabCount count={formData.rows * formData.columns} />
                     </TabsTrigger>
                   </TabsList>
                   
@@ -489,14 +491,17 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {USAGE_TYPES.map((type) => (
+                            {USAGE_TYPES.map((type) => {
+                              const visual = seedingWallUsageVisualMap[type.value];
+                              return (
                               <SelectItem key={type.value} value={type.value}>
                                 <div className="flex items-center gap-2">
-                                  <type.icon className="w-4 h-4" style={{ color: type.color }} />
+                                  <type.icon className="w-4 h-4" style={{ color: visual.color }} />
                                   {type.label}
                                 </div>
                               </SelectItem>
-                            ))}
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -596,7 +601,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                                     className="aspect-square border rounded flex flex-col items-center justify-center gap-1 p-2 bg-background hover:bg-muted/50 transition-colors"
                                   >
                                     <div className="text-xs font-mono">{slot?.slotCode.split('-').slice(1).join('-')}</div>
-                                    <div className="text-[10px] text-muted-foreground">#{slot?.sortSequence}</div>
+                                    <div className="text-xs text-muted-foreground">#{slot?.sortSequence}</div>
                                     <div className="text-xs font-mono text-primary">{slot?.checkDigit}</div>
                                   </div>
                                 );
@@ -609,14 +614,14 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                         <div className="border rounded-lg overflow-hidden max-h-60 overflow-y-auto">
                           <Table>
                             <TableHeader>
-                              <TableRow>
+                              <DataTableHeaderRow>
                                 <TableHead>格口编号</TableHead>
                                 <TableHead className="text-center">层</TableHead>
                                 <TableHead className="text-center">列</TableHead>
                                 <TableHead className="text-center">作业顺序</TableHead>
                                 <TableHead className="text-center">校验码</TableHead>
                                 <TableHead className="text-center">方位</TableHead>
-                              </TableRow>
+                              </DataTableHeaderRow>
                             </TableHeader>
                             <TableBody>
                               {previewSlots.slice(0, 10).map((slot) => (
@@ -815,7 +820,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <DataTableHeaderRow>
                       <TableHead>墙编号</TableHead>
                       <TableHead>墙名称</TableHead>
                       <TableHead>用途类型</TableHead>
@@ -826,7 +831,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                       <TableHead className="text-center">状态</TableHead>
                       <TableHead>更新时间</TableHead>
                       <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {filteredWalls.map((wall) => {
@@ -839,7 +844,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                           <TableCell>{wall.wallName}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <TypeIcon className="w-4 h-4" style={{ color: typeConfig.color }} />
+                              <TypeIcon className="w-4 h-4" style={{ color: typeConfig.visualColor }} />
                               <span>{typeConfig.label}</span>
                             </div>
                           </TableCell>
@@ -968,7 +973,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                           }`}
                           title={slot?.slotCode}
                         >
-                          <div className={`text-[10px] font-mono ${isDisabled ? 'text-muted-foreground' : ''}`}>
+                          <div className={`font-mono text-xs ${isDisabled ? 'text-muted-foreground' : ''}`}>
                             {slot?.slotCode.split('-').slice(1).join('-')}
                           </div>
                           <div className={`text-xs ${isDisabled ? 'text-muted-foreground' : 'text-primary'}`}>
@@ -1072,7 +1077,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
               
               <div className="flex items-start gap-2 p-3 border rounded-lg bg-info/5 border-info/20">
                 <CheckCircle2 className="w-4 h-4 text-info mt-0.5" />
-                <div className="text-sm text-info-foreground">
+                <div className="text-sm text-info-700">
                   <p>将打印 <span className="font-medium">{previewSlots.filter(s => s.isActive).length}</span> 个可用格口的标签</p>
                   <p className="text-xs mt-1">已禁用的格口不会打印</p>
                 </div>
@@ -1084,7 +1089,7 @@ export default function SeedingWallManagementPage({ onNavigate }: SeedingWallMan
                 取消
               </Button>
               <Button onClick={() => {
-                console.log("打印标签:", previewWall?.wallCode);
+                toast.success(`已发送 ${previewWall?.wallCode} 的格口标签打印任务`);
                 setIsPrintDialogOpen(false);
               }}>
                 <Printer className="w-4 h-4 mr-2" />

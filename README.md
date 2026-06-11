@@ -2,13 +2,102 @@
 
 [![React](https://img.shields.io/badge/React-18.x-blue.svg?style=flat-square&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Vite](https://img.shields.io/badge/Vite-5.x-purple.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
-[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.x-38bdf8.svg?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![Vite](https://img.shields.io/badge/Vite-6.x-purple.svg?style=flat-square&logo=vite)](https://vitejs.dev/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4.x-38bdf8.svg?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 
 **Vita-WMS** 是一款专门针对**跨境电商海外仓作业核心链路**设计的高保真、交互式前端演示系统。本项目以极具现代科技感的“紫灰色调”为主视觉设计，100% 还原了海外仓从**卡车到货、入库收货、移位上架、波次创建、拣货打包、出库复核到仓内库存盘点**的全生命周期作业场景。
 
 系统内置了完整的 **Session 级动态模拟数据库与跨模块数据联动**，并针对仓内扫码高吞吐率诉求提供了**“一键扫码枪模拟”**等现场演示辅助工具。非常适用于**产品经理原型汇报、高校及物流培训课程教学演示、技术售前解决方案展示**等场景。
+
+---
+
+## 🧩 Design System 与迁移包说明
+
+本仓库现在包含两个可运行部分：
+
+| 目录 | 作用 | 本地地址 |
+|---|---|---|
+| 根目录 | Vita-WMS 海外仓业务 Demo，用于课程演示和业务流程查看。 | `http://localhost:5173/` |
+| `vita-design-system-starter/` | 从 WMS 中抽取出来的独立后台 Design System starter，可发布到 GitHub，供 ERP、SRM、OMMS、OMS、TMS、CRM 等项目复用。 | `http://localhost:5174/` |
+
+如果你的目标是继续查看 WMS 业务页面，运行根目录项目即可。  
+如果你的目标是把这套后台设计语言迁移到其他系统，优先使用：
+
+```text
+vita-design-system-starter/
+```
+
+### Design System Starter 包含什么
+
+```text
+vita-design-system-starter/
+├── README.md
+├── DESIGN_SYSTEM_RULES.md
+├── MIGRATION_GUIDE.md
+├── docs/design-system/             # 设计规范、迁移说明、AI 执行规则
+├── src/styles/                     # Design Tokens 和全局样式
+├── src/app/components/ui/          # 基础 UI 控件
+├── src/app/components/business/    # 后台业务模式组件
+├── src/app/components/layouts/     # AppShell 通用后台布局
+├── src/app/types/design-system.ts  # 通用类型
+├── src/app/templates/              # 可复制页面模板
+└── src/app/pages/                  # Design System 预览页
+```
+
+### 迁移到其他系统时给 AI 什么
+
+推荐把 `vita-design-system-starter/` 整个目录交给 AI。最小迁移包包括：
+
+```text
+docs/design-system/
+src/styles/
+src/app/components/ui/
+src/app/components/business/
+src/app/components/layouts/AppShell.tsx
+src/app/types/design-system.ts
+src/app/templates/
+DESIGN_SYSTEM_RULES.md
+MIGRATION_GUIDE.md
+README.md
+```
+
+给 AI 的提示词可以直接使用：
+
+```text
+请先阅读 DESIGN_SYSTEM_RULES.md、MIGRATION_GUIDE.md 和 docs/design-system/。
+
+目标是基于 Vita 后台 Design System 创建新的后台系统页面，不要直接复制 WMS 业务页面。
+
+必须遵守：
+1. 列表页从 src/app/templates/ListPageTemplate.tsx 开始。
+2. 作业流页面从 src/app/templates/WorkflowPageTemplate.tsx 开始。
+3. 详情页使用 DetailPageLayout。
+4. 表单页使用 FormPageLayout。
+5. 空状态使用 PageEmptyState。
+6. 危险操作确认使用 ConfirmActionDialog。
+7. 状态展示必须使用 statusMap + StatusBadge。
+8. 不要直接写品牌色十六进制值。
+9. 新系统只改主题、菜单配置、状态映射、业务类型和 service 数据层。
+10. 不要修改 components/ui 和 AppShell 来适配单个页面。
+```
+
+### Starter 独立运行方式
+
+```bash
+cd vita-design-system-starter
+npm install
+npm run dev
+```
+
+构建检查：
+
+```bash
+npm run typecheck
+npm run build
+```
+
+该 starter 已验证可以独立运行和构建。发布 GitHub 时，可以优先发布这个目录作为单独项目。
 
 ---
 
@@ -51,16 +140,34 @@
 
 ## 📦 快速开始与本地运行 (Quick Start)
 
-### 1. 克隆并安装依赖
-```bash
-# 1. 安装依赖项目（推荐使用 npm 或 pnpm）
-npm install
+### 1. 运行 Vita-WMS 业务 Demo
 
-# 2. 启动本地开发服务
+```bash
+npm install
 npm run dev
 ```
 
-### 2. 演示登录说明
+默认访问：
+
+```text
+http://localhost:5173/
+```
+
+### 2. 运行独立 Design System Starter
+
+```bash
+cd vita-design-system-starter
+npm install
+npm run dev
+```
+
+默认访问：
+
+```text
+http://localhost:5174/
+```
+
+### 3. 演示登录说明
 访问本地服务（默认为 `http://localhost:5173`），系统将展现高水准的两栏式 WMS 登录面板：
 > 💡 **演示提示**：系统在演示环境中**不校验实际密码**。输入框已默认填充好 demo 账号，直接点击 **“登录并进入工作台”** 即可进入系统。
 

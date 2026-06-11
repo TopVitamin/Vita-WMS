@@ -7,6 +7,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow } from "../components/business";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Checkbox } from "../components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
@@ -357,7 +358,7 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
   const renderProductInventoryTable = () => (
     <Table>
       <TableHeader>
-        <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+        <DataTableHeaderRow>
           <TableHead className="w-12">
             <Checkbox
               checked={selectedItems.length === currentData.length}
@@ -374,18 +375,13 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
           <TableHead className="text-right">锁定库存</TableHead>
           <TableHead className="text-right">冻结库存</TableHead>
           <TableHead className="text-right">操作</TableHead>
-        </TableRow>
+        </DataTableHeaderRow>
       </TableHeader>
       <TableBody>
         {currentData.map((item: any, index) => (
           <TableRow
             key={`product-${index}`}
-            className="hover:bg-table-row-hover transition-colors"
-            style={{
-              backgroundColor: selectedItems.includes(`${activeTab}-${index}`)
-                ? "var(--table-row-hover)"
-                : undefined,
-            }}
+            className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`${activeTab}-${index}`) ? "bg-table-row-hover" : ""}`}
           >
             <TableCell>
               <Checkbox
@@ -425,7 +421,7 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
   const renderProductLocationInventoryTable = () => (
     <Table>
       <TableHeader>
-        <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+        <DataTableHeaderRow>
           <TableHead className="w-12">
             <Checkbox
               checked={selectedItems.length === currentData.length}
@@ -443,18 +439,13 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
           <TableHead className="text-right">锁定库存</TableHead>
           <TableHead className="text-right">冻结库存</TableHead>
           <TableHead className="text-right">操作</TableHead>
-        </TableRow>
+        </DataTableHeaderRow>
       </TableHeader>
       <TableBody>
         {currentData.map((item: any, index) => (
           <TableRow
             key={`product-location-${index}`}
-            className="hover:bg-table-row-hover transition-colors"
-            style={{
-              backgroundColor: selectedItems.includes(`${activeTab}-${index}`)
-                ? "var(--table-row-hover)"
-                : undefined,
-            }}
+            className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`${activeTab}-${index}`) ? "bg-table-row-hover" : ""}`}
           >
             <TableCell>
               <Checkbox
@@ -502,7 +493,7 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
   const renderProductBatchInventoryTable = () => (
     <Table>
       <TableHeader>
-        <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+        <DataTableHeaderRow>
           <TableHead className="w-12">
             <Checkbox
               checked={selectedItems.length === currentData.length}
@@ -522,18 +513,13 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
           <TableHead className="text-right">冻结库存</TableHead>
           <TableHead>入库日期</TableHead>
           <TableHead className="text-right">操作</TableHead>
-        </TableRow>
+        </DataTableHeaderRow>
       </TableHeader>
       <TableBody>
         {currentData.map((item: any, index) => (
           <TableRow
             key={`product-batch-${index}`}
-            className="hover:bg-table-row-hover transition-colors"
-            style={{
-              backgroundColor: selectedItems.includes(`${activeTab}-${index}`)
-                ? "var(--table-row-hover)"
-                : undefined,
-            }}
+            className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`${activeTab}-${index}`) ? "bg-table-row-hover" : ""}`}
           >
             <TableCell>
               <Checkbox
@@ -581,7 +567,7 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
   const renderProductBatchLocationInventoryTable = () => (
     <Table>
       <TableHeader>
-        <TableRow style={{ backgroundColor: 'var(--table-header-bg)' }}>
+        <DataTableHeaderRow>
           <TableHead className="w-12">
             <Checkbox
               checked={selectedItems.length === currentData.length}
@@ -603,18 +589,13 @@ export default function InventoryListPage({ onNavigate }: InventoryListPageProps
           <TableHead className="text-right">冻结库存</TableHead>
           <TableHead>入库日期</TableHead>
           <TableHead className="text-right">操作</TableHead>
-        </TableRow>
+        </DataTableHeaderRow>
       </TableHeader>
       <TableBody>
         {currentData.map((item: any, index) => (
           <TableRow
             key={`product-batch-location-${index}`}
-            className="hover:bg-table-row-hover transition-colors"
-            style={{
-              backgroundColor: selectedItems.includes(`${activeTab}-${index}`)
-                ? "var(--table-row-hover)"
-                : undefined,
-            }}
+            className={`hover:bg-table-row-hover transition-colors ${selectedItems.includes(`${activeTab}-${index}`) ? "bg-table-row-hover" : ""}`}
           >
             <TableCell>
               <Checkbox

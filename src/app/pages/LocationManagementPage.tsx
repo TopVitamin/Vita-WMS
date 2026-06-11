@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -6,6 +7,8 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
+import { DataTableHeaderRow } from "../components/business";
+import { locationStatusVisualMap, locationUsageVisualMap } from "../configs/wmsVisualConfig";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
 import { Switch } from "../components/ui/switch";
@@ -38,20 +41,20 @@ import { EmptyState } from "../components/wms/EmptyState";
 
 // 库位用途枚举
 const USAGE_TYPES = [
-  { value: "bulk_storage", label: "存储位", icon: Package, color: "var(--purple-600)" },
-  { value: "pick_face", label: "拣货位", icon: PackageOpen, color: "var(--info-500)" },
-  { value: "transit", label: "过渡位", icon: Truck, color: "var(--warning-500)" },
-  { value: "workstation", label: "工作台", icon: Wrench, color: "var(--success-600)" },
+  { value: "bulk_storage", label: "存储位", icon: Package },
+  { value: "pick_face", label: "拣货位", icon: PackageOpen },
+  { value: "transit", label: "过渡位", icon: Truck },
+  { value: "workstation", label: "工作台", icon: Wrench },
 ] as const;
 
 type UsageType = typeof USAGE_TYPES[number]['value'];
 
 // 库位状态枚举
 const LOCATION_STATUS = [
-  { value: "normal", label: "正常", color: "var(--success-500)", bgColor: "var(--success-50)" },
-  { value: "sealed", label: "封存", color: "var(--error-500)", bgColor: "var(--error-50)" },
-  { value: "inbound_only", label: "只进不出", color: "var(--info-500)", bgColor: "var(--info-50)" },
-  { value: "outbound_only", label: "只出不进", color: "var(--warning-500)", bgColor: "var(--warning-50)" },
+  { value: "normal", label: "正常" },
+  { value: "sealed", label: "封存" },
+  { value: "inbound_only", label: "只进不出" },
+  { value: "outbound_only", label: "只出不进" },
 ] as const;
 
 type LocationStatus = typeof LOCATION_STATUS[number]['value'];
@@ -359,12 +362,14 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
 
   // 获取库位用途配置
   const getUsageTypeConfig = (type: UsageType) => {
-    return USAGE_TYPES.find(t => t.value === type) || USAGE_TYPES[0];
+    const config = USAGE_TYPES.find(t => t.value === type) || USAGE_TYPES[0];
+    return { ...config, visualColor: locationUsageVisualMap[config.value].color };
   };
 
   // 获取库位状态配置
   const getStatusConfig = (status: LocationStatus) => {
-    return LOCATION_STATUS.find(s => s.value === status) || LOCATION_STATUS[0];
+    const config = LOCATION_STATUS.find(s => s.value === status) || LOCATION_STATUS[0];
+    return { ...config, visualColor: locationStatusVisualMap[config.value].color, visualBgColor: locationStatusVisualMap[config.value].bgColor };
   };
 
   // 打开编辑对话框
@@ -432,7 +437,7 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
 
   // 处理单个库位提交
   const handleSubmit = () => {
-    console.log("提交库位数据:", formData);
+    toast.success(editingLocation ? "库位已更新" : "库位已创建");
     setIsCreateDialogOpen(false);
     setIsEditDialogOpen(false);
     resetForm();
@@ -445,11 +450,7 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
       (batchForm.bayEnd - batchForm.bayStart + 1) *
       (batchForm.levelEnd - batchForm.levelStart + 1);
     
-    console.log("批量生成库位:", {
-      ...batchForm,
-      estimatedCount: totalCount,
-    });
-    
+    toast.success(`已生成 ${totalCount} 个库位`);
     setIsBatchDialogOpen(false);
     resetBatchForm();
   };
@@ -474,7 +475,7 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
 
   // 打印库位标签
   const handlePrintLabels = () => {
-    console.log("打印库位标签:", selectedLocations);
+    toast.success(`已发送 ${selectedLocations.length} 个库位标签打印任务`);
     setIsPrintDialogOpen(false);
     setSelectedLocations([]);
   };
@@ -483,8 +484,8 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
     <WMSLayout title="库位管理" currentPath="/master-data/locations" onNavigate={onNavigate}>
       <div className="p-6 space-y-6">
         {/* Action Buttons */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap gap-2">
             <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
               <DialogTrigger asChild>
                 <Button 
@@ -895,14 +896,17 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {USAGE_TYPES.map((type) => (
+                        {USAGE_TYPES.map((type) => {
+                          const visual = locationUsageVisualMap[type.value];
+                          return (
                           <SelectItem key={type.value} value={type.value}>
                             <div className="flex items-center gap-2">
-                              <type.icon className="w-4 h-4" style={{ color: type.color }} />
+                              <type.icon className="w-4 h-4" style={{ color: visual.color }} />
                               {type.label}
                             </div>
                           </SelectItem>
-                        ))}
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1201,7 +1205,7 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
               <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                    <DataTableHeaderRow>
                       <TableHead className="w-12">
                         <Checkbox 
                           checked={selectedLocations.length === filteredLocations.length}
@@ -1219,7 +1223,7 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
                       <TableHead>当前SKU</TableHead>
                       <TableHead className="text-right">占用率</TableHead>
                       <TableHead className="text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {filteredLocations.map((location) => {
@@ -1245,7 +1249,7 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
                           <TableCell>{location.zoneName}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <UsageIcon className="w-4 h-4" style={{ color: usageConfig.color }} />
+                              <UsageIcon className="w-4 h-4" style={{ color: usageConfig.visualColor }} />
                               <span>{usageConfig.label}</span>
                             </div>
                           </TableCell>
@@ -1253,9 +1257,9 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
                             <Badge 
                               variant="outline" 
                               style={{ 
-                                backgroundColor: statusConfig.bgColor,
-                                color: statusConfig.color,
-                                borderColor: statusConfig.color 
+                                backgroundColor: statusConfig.visualBgColor,
+                                color: statusConfig.visualColor,
+                                borderColor: statusConfig.visualColor
                               }}
                             >
                               {statusConfig.label}
@@ -1400,14 +1404,17 @@ export default function LocationManagementPage({ onNavigate }: LocationManagemen
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {USAGE_TYPES.map((type) => (
+                    {USAGE_TYPES.map((type) => {
+                      const visual = locationUsageVisualMap[type.value];
+                      return (
                       <SelectItem key={type.value} value={type.value}>
                         <div className="flex items-center gap-2">
-                          <type.icon className="w-4 h-4" style={{ color: type.color }} />
+                          <type.icon className="w-4 h-4" style={{ color: visual.color }} />
                           {type.label}
                         </div>
                       </SelectItem>
-                    ))}
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>

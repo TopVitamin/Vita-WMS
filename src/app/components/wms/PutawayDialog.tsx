@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Package, Scan, MapPin, CheckCircle2, AlertCircle, ArrowUpToLine } from "lucide-react";
+import { Package, Scan, MapPin, CheckCircle2, ArrowUpToLine } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
 import { Textarea } from "../ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { DataTableHeaderRow, NoticePanel, StatusBadge } from "../business";
 import { toast } from "sonner";
 
 interface ContainerItem {
@@ -122,19 +123,35 @@ export function PutawayDialog({
     }
   }, [open, step, currentSku]);
 
+  const verifyContainer = () => {
+    const input = scannedContainer.trim();
+    if (!input) {
+      toast.error("请扫描或输入容器编号");
+      return;
+    }
+
+    if (input.toUpperCase() === container.containerNo.toUpperCase()) {
+      setContainerVerified(true);
+      setStep("allocate");
+      toast.success(`容器 ${container.containerNo} 验证成功，开始分配库位`);
+    } else {
+      toast.error(`容器编号不匹配，请扫描 ${container.containerNo}`);
+      setScannedContainer("");
+    }
+  };
+
+  const verifyExpectedContainer = () => {
+    setScannedContainer(container.containerNo);
+    setContainerVerified(true);
+    setStep("allocate");
+    toast.success(`容器 ${container.containerNo} 验证成功，开始分配库位`);
+  };
+
   // 扫描容器
   const handleScanContainer = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && scannedContainer.trim()) {
-      const input = scannedContainer.trim();
-      
-      if (input.toUpperCase() === container.containerNo.toUpperCase()) {
-        setContainerVerified(true);
-        setStep("allocate");
-        toast.success(`容器 ${container.containerNo} 验证成功，开始分配库位`);
-      } else {
-        toast.error(`容器编号不匹配，请扫描 ${container.containerNo}`);
-        setScannedContainer("");
-      }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      verifyContainer();
     }
   };
 
@@ -143,7 +160,7 @@ export function PutawayDialog({
     const item = putawayItems.find((i) => i.sku === sku);
     if (!item) return;
 
-    const remainingQty = item.qty - item.locations.reduce((sum, loc) => sum + loc.qty, 0);
+    const remainingQty = item.qty - item.putawayQty - item.locations.reduce((sum, loc) => sum + loc.qty, 0);
     if (remainingQty === 0) {
       toast.error(`SKU ${sku} 已全部分配库位`);
       return;
@@ -154,58 +171,73 @@ export function PutawayDialog({
     setLocationInput("");
   };
 
+  const allocateCurrentLocation = () => {
+    if (!currentSku) {
+      toast.error("请先选择要上架的SKU");
+      return;
+    }
+
+    const locationCode = locationInput.trim().toUpperCase();
+    const qty = parseInt(qtyInput) || 0;
+
+    if (!locationCode) {
+      toast.error("请输入库位编号");
+      return;
+    }
+
+    if (qty <= 0) {
+      toast.error("数量必须大于0");
+      return;
+    }
+
+    const item = putawayItems.find((i) => i.sku === currentSku);
+    if (!item) return;
+
+    const allocatedQty = item.putawayQty + item.locations.reduce((sum, loc) => sum + loc.qty, 0);
+    const remainingQty = item.qty - allocatedQty;
+
+    if (qty > remainingQty) {
+      toast.error(`上架数量不能超过剩余数量 ${remainingQty}`);
+      return;
+    }
+
+    // 检查库位是否已使用（同一SKU）
+    const locationExists = item.locations.some(loc => loc.locationCode === locationCode);
+    if (locationExists) {
+      toast.error(`库位 ${locationCode} 已被使用`);
+      return;
+    }
+
+    // 添加库位分配
+    setPutawayItems(
+      putawayItems.map((i) =>
+        i.sku === currentSku
+          ? {
+              ...i,
+              locations: [...i.locations, { locationCode, qty }],
+            }
+          : i
+      )
+    );
+
+    toast.success(`${currentSku} → ${locationCode} 分配成功，数量: ${qty}`);
+
+    const newRemainingQty = remainingQty - qty;
+    if (newRemainingQty > 0) {
+      setQtyInput(newRemainingQty.toString());
+      setLocationInput("");
+    } else {
+      setCurrentSku(null);
+      setLocationInput("");
+      setQtyInput("");
+    }
+  };
+
   // 分配库位
   const handleAllocateLocation = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && locationInput.trim() && currentSku) {
-      const locationCode = locationInput.trim().toUpperCase();
-      const qty = parseInt(qtyInput) || 0;
-
-      if (qty <= 0) {
-        toast.error("数量必须大于0");
-        return;
-      }
-
-      const item = putawayItems.find((i) => i.sku === currentSku);
-      if (!item) return;
-
-      const allocatedQty = item.locations.reduce((sum, loc) => sum + loc.qty, 0);
-      const remainingQty = item.qty - allocatedQty;
-
-      if (qty > remainingQty) {
-        toast.error(`上架数量不能超过剩余数量 ${remainingQty}`);
-        return;
-      }
-
-      // 检查库位是否已使用（同一SKU）
-      const locationExists = item.locations.some(loc => loc.locationCode === locationCode);
-      if (locationExists) {
-        toast.error(`库位 ${locationCode} 已被使用`);
-        return;
-      }
-
-      // 添加库位分配
-      setPutawayItems(
-        putawayItems.map((i) =>
-          i.sku === currentSku
-            ? {
-                ...i,
-                locations: [...i.locations, { locationCode, qty }],
-              }
-            : i
-        )
-      );
-
-      toast.success(`${currentSku} → ${locationCode} 分配成功，数量: ${qty}`);
-
-      const newRemainingQty = remainingQty - qty;
-      if (newRemainingQty > 0) {
-        setQtyInput(newRemainingQty.toString());
-        setLocationInput("");
-      } else {
-        setCurrentSku(null);
-        setLocationInput("");
-        setQtyInput("");
-      }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      allocateCurrentLocation();
     }
   };
 
@@ -228,7 +260,7 @@ export function PutawayDialog({
   const handleConfirm = () => {
     // 校验所有SKU是否都已分配完毕
     const allAllocated = putawayItems.every((item) => {
-      const allocatedQty = item.locations.reduce((sum, loc) => sum + loc.qty, 0);
+      const allocatedQty = item.putawayQty + item.locations.reduce((sum, loc) => sum + loc.qty, 0);
       return allocatedQty === item.qty;
     });
 
@@ -254,17 +286,15 @@ export function PutawayDialog({
       locations,
       note,
     });
-
-    toast.success("上架完成！");
   };
 
   const totalAllocatedQty = putawayItems.reduce(
-    (sum, item) => sum + item.locations.reduce((s, loc) => s + loc.qty, 0),
+    (sum, item) => sum + item.putawayQty + item.locations.reduce((s, loc) => s + loc.qty, 0),
     0
   );
 
   const allItemsAllocated = putawayItems.every((item) => {
-    const allocatedQty = item.locations.reduce((sum, loc) => sum + loc.qty, 0);
+    const allocatedQty = item.putawayQty + item.locations.reduce((sum, loc) => sum + loc.qty, 0);
     return allocatedQty === item.qty;
   });
 
@@ -285,7 +315,7 @@ export function PutawayDialog({
         <div className="space-y-5">
           {/* 步骤1：扫描容器 */}
           {step === "scan" && !containerVerified && (
-            <div className="border rounded-lg p-5 bg-primary-light/30">
+            <div className="rounded-lg border bg-primary/5 p-5">
               <div className="flex items-center gap-3 mb-5">
                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
                   <Scan className="w-4 h-4" />
@@ -308,6 +338,14 @@ export function PutawayDialog({
                   <p className="text-xs text-muted-foreground">
                     扫描容器条形码后按回车键验证
                   </p>
+                  <Button onClick={verifyContainer} className="mt-2">
+                    <CheckCircle2 className="w-4 h-4" />
+                    验证容器
+                  </Button>
+                  <Button type="button" variant="outline" onClick={verifyExpectedContainer} className="mt-2 ml-2">
+                    <Package className="w-4 h-4" />
+                    使用当前容器
+                  </Button>
                 </div>
 
                 {/* 容器信息预览 */}
@@ -347,7 +385,7 @@ export function PutawayDialog({
           {step === "allocate" && (
             <>
               {/* 容器信息卡片 */}
-              <div className="border rounded-lg p-5 bg-primary-light/30">
+              <div className="rounded-lg border bg-primary/5 p-5">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
@@ -358,10 +396,7 @@ export function PutawayDialog({
                       <div className="flex items-center gap-2 flex-wrap">
                         <code className="font-mono">{container.containerNo}</code>
                         <Badge variant="secondary">{container.containerType}</Badge>
-                        <Badge variant="outline" className="gap-1 bg-success-50 border-success-500 text-success-700">
-                          <CheckCircle2 className="w-3 h-3" />
-                          已验证
-                        </Badge>
+                        <StatusBadge label="已验证" tone="success" Icon={CheckCircle2} />
                       </div>
                     </div>
                   </div>
@@ -381,13 +416,15 @@ export function PutawayDialog({
 
               {/* 库位分配输入区 */}
               {currentSku && (
-                <div className="border rounded-lg p-5 bg-blue-50 border-blue-200">
-                  <div className="flex items-center gap-2 mb-4">
-                    <MapPin className="w-4 h-4 text-blue-600 shrink-0" />
+                <NoticePanel
+                  tone="info"
+                  icon={MapPin}
+                  title={
                     <span>
                       正在为 <code className="font-mono text-primary">{currentSku}</code> 分配库位
                     </span>
-                  </div>
+                  }
+                >
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="locationInput">库位编号 *</Label>
@@ -400,6 +437,20 @@ export function PutawayDialog({
                         onKeyDown={handleAllocateLocation}
                         className="font-mono"
                       />
+                      <div className="flex flex-wrap gap-2">
+                        {mockLocations.map((location) => (
+                          <Button
+                            key={location}
+                            type="button"
+                            variant={locationInput === location ? "default" : "outline"}
+                            size="sm"
+                            className="h-7 px-2 font-mono text-xs"
+                            onClick={() => setLocationInput(location)}
+                          >
+                            {location}
+                          </Button>
+                        ))}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="qtyInput">上架数量 *</Label>
@@ -414,10 +465,16 @@ export function PutawayDialog({
                       />
                     </div>
                   </div>
-                  <p className="text-xs text-blue-700 mt-3">
-                    提示：输入库位和数量后按回车键确认，或点击下方SKU行继续操作
+                  <div className="mt-4 flex justify-end">
+                    <Button onClick={allocateCurrentLocation}>
+                      <MapPin className="w-4 h-4" />
+                      确认分配
+                    </Button>
+                  </div>
+                  <p className="text-xs text-current/80 mt-3">
+                    提示：输入库位和数量后按回车键或点击确认分配，完成当前SKU上架库位绑定
                   </p>
-                </div>
+                </NoticePanel>
               )}
 
               {/* SKU列表和库位分配 */}
@@ -425,16 +482,13 @@ export function PutawayDialog({
                 <div className="flex items-center justify-between">
                   <Label>SKU清单与库位分配</Label>
                   {allItemsAllocated && (
-                    <Badge variant="outline" className="gap-1 bg-success-50 border-success-500 text-success-700">
-                      <CheckCircle2 className="w-3 h-3" />
-                      全部完成
-                    </Badge>
+                    <StatusBadge label="全部完成" tone="success" Icon={CheckCircle2} />
                   )}
                 </div>
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead className="w-12"></TableHead>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
@@ -444,11 +498,11 @@ export function PutawayDialog({
                         <TableHead className="text-right">待分配</TableHead>
                         <TableHead>已分配库位</TableHead>
                         <TableHead className="text-center">操作</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {putawayItems.map((item) => {
-                        const allocatedQty = item.locations.reduce((sum, loc) => sum + loc.qty, 0);
+                        const allocatedQty = item.putawayQty + item.locations.reduce((sum, loc) => sum + loc.qty, 0);
                         const remainingQty = item.qty - allocatedQty;
                         const isCompleted = remainingQty === 0;
                         const isSelected = currentSku === item.sku;
@@ -458,7 +512,7 @@ export function PutawayDialog({
                             key={item.sku}
                             className={
                               isSelected
-                                ? "bg-blue-50 border-l-4 border-l-blue-500"
+                                ? "border-l-4 border-l-primary bg-primary/5"
                                 : isCompleted
                                 ? "bg-success-50/50"
                                 : ""
@@ -550,20 +604,14 @@ export function PutawayDialog({
 
               {/* 提示信息 */}
               {!allItemsAllocated && (
-                <div className="p-4 bg-warning-50 border border-warning-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-warning-600 mt-0.5 shrink-0" />
-                    <div className="text-sm text-warning-900">
-                      <div className="mb-2">请完成所有SKU的库位分配：</div>
-                      <ul className="list-disc list-inside space-y-1.5">
-                        <li>点击"分配库位"按钮选择要上架的SKU</li>
-                        <li>扫描或输入库位编号和数量</li>
-                        <li>同一SKU可以分配到多个库位</li>
-                        <li>必须将所有数量分配完毕才能完成上架</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+                <NoticePanel tone="warning" title="请完成所有SKU的库位分配">
+                  <ul className="list-disc list-inside space-y-1.5">
+                    <li>点击"分配库位"按钮选择要上架的SKU</li>
+                    <li>扫描或输入库位编号和数量</li>
+                    <li>同一SKU可以分配到多个库位</li>
+                    <li>必须将所有数量分配完毕才能完成上架</li>
+                  </ul>
+                </NoticePanel>
               )}
             </>
           )}

@@ -15,6 +15,10 @@ import {
 } from "../components/ui/table";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { ImageWithFallback } from "../components/figma/ImageWithFallback";
+import { DataTableHeaderRow, StatusBadge, StatusTabCount } from "../components/business";
+import { countingTaskStatusMap, stocktakingPlanStatusMap } from "../configs/wmsStatusMap";
+import { toast } from "sonner";
+import { applyStocktakingAdjustment } from "../services/mock";
 import {
   ArrowLeft, Play, CheckCircle, X, Download, AlertTriangle,
   Package, Clock, User, FileText, Image as ImageIcon
@@ -114,6 +118,7 @@ const mockLogs = [
 
 export default function StocktakingDetailPage({ onNavigate, planId = "1" }: StocktakingDetailPageProps) {
   const [activeTab, setActiveTab] = useState("items");
+  const [adjustmentApplied, setAdjustmentApplied] = useState(false);
 
   // Mock盘点计划信息
   const planInfo = {
@@ -136,45 +141,18 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
 
   const progress = planInfo.plannedQty > 0 ? (planInfo.countedQty / planInfo.plannedQty) * 100 : 0;
 
-  // 获取状态Badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "待开始":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">待开始</Badge>;
-      case "盘点中":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">
-          <Play className="w-3 h-3 mr-1" />
-          盘点中
-        </Badge>;
-      case "待审核":
-        return <Badge variant="outline" className="bg-info-50 text-info-600 border-info-200">
-          <Clock className="w-3 h-3 mr-1" />
-          待审核
-        </Badge>;
-      case "已完成":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          已完成
-        </Badge>;
-      case "已取消":
-        return <Badge variant="outline" className="bg-error-50 text-error-600 border-error-200">已取消</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  // 获取盘点状态Badge
-  const getCountingStatusBadge = (status: string) => {
-    switch (status) {
-      case "待盘点":
-        return <Badge variant="outline" className="bg-gray-50 text-gray-600 border-gray-200">待盘点</Badge>;
-      case "盘点中":
-        return <Badge variant="outline" className="bg-warning-50 text-warning-600 border-warning-200">盘点中</Badge>;
-      case "已盘点":
-        return <Badge variant="outline" className="bg-success-50 text-success-600 border-success-200">已盘点</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+  const handleApplyAdjustment = () => {
+    applyStocktakingAdjustment({
+      planNo: planInfo.planNo,
+      items: mockDiffItems.map((item) => ({
+        skuCode: item.skuCode,
+        diffQty: item.diffQty,
+        location: item.location,
+      })),
+      operator: "系统管理员",
+    });
+    setAdjustmentApplied(true);
+    toast.success("盘点差异已生成库存调整流水");
   };
 
   return (
@@ -206,9 +184,15 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
               </>
             )}
             {planInfo.status === "待审核" && (
-              <Button>
+              <Button onClick={handleApplyAdjustment}>
                 <CheckCircle className="w-4 h-4 mr-2" />
                 审核通过
+              </Button>
+            )}
+            {planInfo.status === "已完成" && (
+              <Button variant={adjustmentApplied ? "outline" : "default"} onClick={handleApplyAdjustment} disabled={adjustmentApplied}>
+                <CheckCircle className="w-4 h-4 mr-2" />
+                {adjustmentApplied ? "差异已入流水" : "生成差异流水"}
               </Button>
             )}
             <Button variant="outline">
@@ -242,7 +226,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">盘点状态</div>
-                  {getStatusBadge(planInfo.status)}
+                  <StatusBadge {...stocktakingPlanStatusMap[planInfo.status]} />
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground mb-1">盘点负责人</div>
@@ -304,17 +288,17 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
         {/* Tab内容 */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="items">
-              <Package className="w-4 h-4 mr-2" />
+            <TabsTrigger value="items" className="group gap-1">
               盘点明细
+              <StatusTabCount count={mockStocktakingItems.length} />
             </TabsTrigger>
-            <TabsTrigger value="diff">
-              <AlertTriangle className="w-4 h-4 mr-2" />
+            <TabsTrigger value="diff" className="group gap-1">
               差异明细
+              <StatusTabCount count={mockDiffItems.length} />
             </TabsTrigger>
-            <TabsTrigger value="logs">
-              <FileText className="w-4 h-4 mr-2" />
+            <TabsTrigger value="logs" className="group gap-1">
               盘点日志
+              <StatusTabCount count={mockLogs.length} />
             </TabsTrigger>
           </TabsList>
 
@@ -324,7 +308,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <DataTableHeaderRow className="bg-muted/50">
                       <TableHead className="w-[140px]">SKU编码</TableHead>
                       <TableHead className="w-[200px]">商品信息</TableHead>
                       <TableHead className="w-[100px]">库位</TableHead>
@@ -338,7 +322,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
                       <TableHead className="w-[140px]">盘点时间</TableHead>
                       <TableHead className="w-[160px]">备注</TableHead>
                       <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {mockStocktakingItems.map((item) => (
@@ -369,13 +353,13 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
                           <span className="font-mono text-sm">{item.batchNo}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.bookQty}</span>
+                          <span className="text-sm tabular-nums">{item.bookQty}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className="text-sm font-medium">{item.actualQty}</span>
+                          <span className="text-sm tabular-nums">{item.actualQty}</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span className={`text-sm font-medium ${item.diffQty > 0 ? 'text-success-600' : item.diffQty < 0 ? 'text-error-600' : 'text-muted-foreground'}`}>
+                          <span className={`text-sm tabular-nums ${item.diffQty > 0 ? 'text-success-600' : item.diffQty < 0 ? 'text-error-600' : 'text-muted-foreground'}`}>
                             {item.diffQty > 0 ? '+' : ''}{item.diffQty}
                           </span>
                         </TableCell>
@@ -385,7 +369,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
                           </span>
                         </TableCell>
                         <TableCell>
-                          {getCountingStatusBadge(item.countingStatus)}
+                          <StatusBadge {...countingTaskStatusMap[item.countingStatus]} />
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">{item.counter}</span>
@@ -430,7 +414,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-muted/50">
+                    <DataTableHeaderRow className="bg-muted/50">
                       <TableHead>SKU编码</TableHead>
                       <TableHead>商品名称</TableHead>
                       <TableHead>库位</TableHead>
@@ -439,7 +423,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
                       <TableHead className="text-right">差异数量</TableHead>
                       <TableHead className="text-right">差异率</TableHead>
                       <TableHead>备注</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {mockDiffItems.map((item) => (
@@ -489,7 +473,7 @@ export default function StocktakingDetailPage({ onNavigate, planId = "1" }: Stoc
                       </div>
                       <div className="flex-1 pb-8">
                         <div className="flex items-center gap-3 mb-1">
-                          <span className="font-medium">{log.action}</span>
+                          <span>{log.action}</span>
                           <span className="text-sm text-muted-foreground">•</span>
                           <span className="text-sm text-muted-foreground">{log.operateTime}</span>
                         </div>

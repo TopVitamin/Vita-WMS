@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { WMSLayout } from "../components/layouts/WMSLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { listInventoryItems, resetMockInventory } from "../services/mock";
+import { dashboardChartPalette } from "../configs/wmsVisualConfig";
+import { listInboundOrders, listInventoryItems, resetMockInbound, resetMockInventory, resetMockPutaway } from "../services/mock";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import {
@@ -12,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "../components/ui/table";
+import { ConfirmActionDialog, DataTableHeaderRow } from "../components/business";
 import {
   BarChart3,
   TrendingUp,
@@ -53,9 +56,10 @@ interface DashboardPageProps {
 }
 
 export default function DashboardPage({ onNavigate }: DashboardPageProps) {
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
   // 动态获取缓存入库单与实时库存总量
-  const storedInbound = typeof window !== "undefined" ? sessionStorage.getItem("wms_mock_inbound_orders") : null;
-  const currentInboundOrders = storedInbound ? JSON.parse(storedInbound) : [];
+  const currentInboundOrders = listInboundOrders();
   
   // 统计待收货的订单数 (即 pending 或 in_progress)
   const pendingInboundCount = currentInboundOrders.length > 0 
@@ -97,11 +101,14 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   // 一键重置演示数据逻辑
   const handleResetAllDemoData = () => {
-    if (window.confirm("确定要重置所有演示数据吗？这会清除您刚才做的全部收货与库存修改。")) {
-      sessionStorage.removeItem("wms_mock_inbound_orders");
-      resetMockInventory();
-      window.location.reload();
-    }
+    setResetConfirmOpen(true);
+  };
+
+  const confirmResetAllDemoData = () => {
+    resetMockInbound();
+    resetMockPutaway();
+    resetMockInventory();
+    window.location.reload();
   };
 
   // 7天业务趋势数据 (动态接入今日库存量)
@@ -185,11 +192,11 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   // 客户库存分布
   const customerDistribution = [
-    { name: "Amazon US", value: 45200, color: "var(--purple-600)" },
-    { name: "eBay UK", value: 28500, color: "var(--purple-400)" },
-    { name: "Walmart Canada", value: 22100, color: "var(--purple-300)" },
-    { name: "Shopify", value: 18900, color: "var(--purple-200)" },
-    { name: "其他", value: 10980, color: "var(--gray-300)" },
+    { name: "Amazon US", value: 45200, visualColor: dashboardChartPalette[0] },
+    { name: "eBay UK", value: 28500, visualColor: dashboardChartPalette[1] },
+    { name: "Walmart Canada", value: 22100, visualColor: dashboardChartPalette[2] },
+    { name: "Shopify", value: 18900, visualColor: dashboardChartPalette[3] },
+    { name: "其他", value: 10980, visualColor: dashboardChartPalette[4] },
   ];
 
   // 最新动态
@@ -454,14 +461,14 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
               <CardContent>
                 <Table>
                   <TableHeader>
-                    <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                    <DataTableHeaderRow>
                       <TableHead>SKU</TableHead>
                       <TableHead>商品名称</TableHead>
                       <TableHead>所属客户</TableHead>
                       <TableHead className="text-right">当前库存</TableHead>
                       <TableHead className="text-right">安全库存</TableHead>
                       <TableHead>类型</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {inventoryAlerts.map((alert, index) => (
@@ -545,7 +552,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                   </Button>
                   <Button
                     variant="outline"
-                    className="col-span-2 mt-2 border-dashed border-primary/40 hover:bg-primary-light/10 text-primary flex items-center justify-center gap-2"
+                    className="col-span-2 mt-2 border-dashed border-primary/40 text-primary hover:bg-primary/10 flex items-center justify-center gap-2"
                     onClick={handleResetAllDemoData}
                   >
                     <RefreshCcw className="w-4 h-4" />
@@ -577,7 +584,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                       dataKey="value"
                     >
                       {customerDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${index}`} fill={entry.visualColor} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -596,7 +603,7 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
                       <div className="flex items-center gap-2">
                         <div
                           className="w-3 h-3 rounded-full"
-                          style={{ backgroundColor: item.color }}
+                          style={{ backgroundColor: item.visualColor }}
                         />
                         <span>{item.name}</span>
                       </div>
@@ -693,6 +700,16 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
           </div>
         </div>
       </div>
+
+      <ConfirmActionDialog
+        destructive
+        confirmLabel="确认重置"
+        description="重置会清除当前浏览器中的演示收货、上架与库存修改，并恢复初始 mock 数据。"
+        onConfirm={confirmResetAllDemoData}
+        onOpenChange={setResetConfirmOpen}
+        open={resetConfirmOpen}
+        title="重置演示数据"
+      />
     </WMSLayout>
   );
 }

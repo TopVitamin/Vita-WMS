@@ -19,15 +19,20 @@ import ArrivalScanPage from "./pages/ArrivalScanPage";
 import ContainerManagementPage from "./pages/ContainerManagementPage";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
 import DashboardPage from "./pages/DashboardPage";
+import DesignSystemPreviewPage from "./pages/DesignSystemPreviewPage";
 import InboundDetailPage from "./pages/InboundDetailPage";
 import InboundListPage from "./pages/InboundListPage";
+import InventoryAdjustmentPage from "./pages/InventoryAdjustmentPage";
 import InventoryDetailPage from "./pages/InventoryDetailPage";
 import InventoryQueryPage from "./pages/InventoryQueryPage";
 import InventoryTransactionPage from "./pages/InventoryTransactionPage";
+import InventoryTransferPage from "./pages/InventoryTransferPage";
+import InventoryTransferWorkspacePage from "./pages/InventoryTransferWorkspacePage";
 import LocationManagementPage from "./pages/LocationManagementPage";
 import OutboundCheckPage from "./pages/OutboundCheckPage";
 import OutboundDetailPage from "./pages/OutboundDetailPage";
 import OutboundListPage from "./pages/OutboundListPage";
+import OutboundShippingPage from "./pages/OutboundShippingPage";
 import PackingTaskListPage from "./pages/PackingTaskListPage";
 import PackingWorkspacePage from "./pages/PackingWorkspacePage";
 import PickingTaskDetailPage from "./pages/PickingTaskDetailPage";
@@ -36,6 +41,11 @@ import PickingWorkspacePage from "./pages/PickingWorkspacePage";
 import ProductMasterDataPage from "./pages/ProductMasterDataPage";
 import PutawayDetailPage from "./pages/PutawayDetailPage";
 import PutawayListPage from "./pages/PutawayListPage";
+import ReplenishmentManagementPage from "./pages/ReplenishmentManagementPage";
+import InboundReportPage from "./pages/reports/InboundReportPage";
+import InventoryReportPage from "./pages/reports/InventoryReportPage";
+import OutboundReportPage from "./pages/reports/OutboundReportPage";
+import ProductivityReportPage from "./pages/reports/ProductivityReportPage";
 import SeedingOperationPage from "./pages/SeedingOperationPage";
 import SeedingWallManagementPage from "./pages/SeedingWallManagementPage";
 import SKUFormPage from "./pages/SKUFormPage";
@@ -217,11 +227,6 @@ function createNavigateHandler(navigate: ReturnType<typeof useNavigate>, onLogou
       return;
     }
 
-    if (path === "/inventory/adjustment" || path.startsWith("/reports")) {
-      navigate("/");
-      return;
-    }
-
     navigate(path);
   };
 }
@@ -265,6 +270,7 @@ function AppRoutes() {
         }
       />
       <Route path="/" element={protectedPage(DashboardPage)} />
+      <Route path="/design-system" element={protectedPage(DesignSystemPreviewPage)} />
       <Route path="/inbound/arrival-scan" element={protectedPage(ArrivalScanPage as RoutedPageComponent)} />
       <Route path="/inbound/management" element={protectedPage(InboundListPage as RoutedPageComponent)} />
       <Route path="/inbound/detail" element={protectedPage(InboundDetailPage as RoutedPageComponent)} />
@@ -283,6 +289,7 @@ function AppRoutes() {
       <Route path="/wave/detail" element={protectedPage(WaveDetailPage as RoutedPageComponent)} />
       <Route path="/outbound/seeding" element={protectedPage(SeedingOperationPage as RoutedPageComponent)} />
       <Route path="/outbound/check" element={protectedPage(OutboundCheckPage as RoutedPageComponent)} />
+      <Route path="/outbound/shipping" element={protectedPage(OutboundShippingPage as RoutedPageComponent)} />
       <Route path="/picking/tasks" element={protectedPage(PickingTaskListPage)} />
       <Route
         path="/picking/tasks/:taskId"
@@ -305,6 +312,10 @@ function AppRoutes() {
         }
       />
       <Route path="/inventory/transaction" element={protectedPage(InventoryTransactionPage as RoutedPageComponent)} />
+      <Route path="/inventory/transfer" element={protectedPage(InventoryTransferPage as RoutedPageComponent)} />
+      <Route path="/inventory/transfer/workspace" element={protectedPage(InventoryTransferWorkspacePage)} />
+      <Route path="/inventory/adjustment" element={protectedPage(InventoryAdjustmentPage as RoutedPageComponent)} />
+      <Route path="/inventory/replenishment" element={protectedPage(ReplenishmentManagementPage as RoutedPageComponent)} />
       <Route path="/inventory/stocktaking" element={protectedPage(StocktakingPlanListPage)} />
       <Route path="/inventory/stocktaking/create" element={protectedPage(StocktakingCreatePage)} />
       <Route path="/inventory/stocktaking/workspace" element={protectedPage(StocktakingWorkspacePage)} />
@@ -316,6 +327,10 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/reports/inbound" element={protectedPage(InboundReportPage as RoutedPageComponent)} />
+      <Route path="/reports/outbound" element={protectedPage(OutboundReportPage as RoutedPageComponent)} />
+      <Route path="/reports/inventory" element={protectedPage(InventoryReportPage as RoutedPageComponent)} />
+      <Route path="/reports/productivity" element={protectedPage(ProductivityReportPage as RoutedPageComponent)} />
       <Route path="/master-data/skus" element={protectedPage(SKUListPage)} />
       <Route path="/master-data/skus/create" element={protectedPage(SKUFormPage)} />
       <Route

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Package, Scan, CheckCircle2, AlertCircle } from "lucide-react";
-import { addInventoryStock } from "../../services/mock";
+import type { ReceivingStagingLocation } from "../../services/mock";
 import {
   Dialog,
   DialogContent,
@@ -12,17 +12,13 @@ import {
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { ConfirmActionDialog, DataTableHeaderRow, NoticePanel, StatusBadge } from "../business";
+import { itemProgressStatusMap } from "../../configs/wmsStatusMap";
+import { Badge } from "../ui/badge";
 import { toast } from "sonner";
-
-const skuMapping: Record<string, string> = {
-  "SKU-001": "ABC-123456", // 蓝牙耳机
-  "SKU-002": "ABC-123457", // 智能手环
-  "SKU-003": "JKL-901234", // 充电宝映射到 USB type-c 充电线
-};
 
 interface Container {
   containerNo: string;
@@ -52,6 +48,7 @@ interface ReceiveDialogProps {
     items: ReceiveItem[];
     note: string;
   }) => void;
+  stagingLocation?: ReceivingStagingLocation;
 }
 
 export function ReceiveDialog({
@@ -60,6 +57,7 @@ export function ReceiveDialog({
   inboundId,
   items,
   onConfirm,
+  stagingLocation,
 }: ReceiveDialogProps) {
   const [step, setStep] = useState<"overview" | "container" | "scan">("overview");
   const [container, setContainer] = useState<Container | null>(null);
@@ -68,6 +66,7 @@ export function ReceiveDialog({
   const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>([]);
   const [scanInput, setScanInput] = useState("");
   const [note, setNote] = useState("");
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const containerInputRef = useRef<HTMLInputElement>(null);
   const scanInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,6 +131,13 @@ export function ReceiveDialog({
     );
 
     if (matchedItem) {
+      const remainingQty = matchedItem.plannedQty - matchedItem.receivedQty - matchedItem.currentReceiveQty;
+      if (remainingQty <= 0) {
+        toast.error(`${matchedItem.sku} 已达到计划数量，不能继续收货`);
+        setScanInput("");
+        return;
+      }
+
       // 增加收货数量
       setReceiveItems(
         receiveItems.map((item) =>
@@ -163,7 +169,12 @@ export function ReceiveDialog({
     const numQty = parseInt(qty) || 0;
     setReceiveItems(
       receiveItems.map((item) =>
-        item.sku === sku ? { ...item, currentReceiveQty: numQty } : item
+        item.sku === sku
+          ? {
+              ...item,
+              currentReceiveQty: Math.min(Math.max(numQty, 0), Math.max(0, item.plannedQty - item.receivedQty)),
+            }
+          : item
       )
     );
   };
@@ -187,12 +198,6 @@ export function ReceiveDialog({
     // 过滤出有收货数量的商品
     const itemsToReceive = receiveItems.filter((item) => item.currentReceiveQty > 0);
 
-    // 累加对应库存数量
-    itemsToReceive.forEach((item) => {
-      const inventorySku = skuMapping[item.sku] || item.sku;
-      addInventoryStock(inventorySku, item.currentReceiveQty);
-    });
-
     onConfirm({
       container,
       items: itemsToReceive,
@@ -210,16 +215,21 @@ export function ReceiveDialog({
 
   const handleBackToOverview = () => {
     if (step === "scan" && receiveItems.some(item => item.currentReceiveQty > 0)) {
-      if (window.confirm("当前容器中已添加商品，确认要返回吗？数据将丢失。")) {
-        setStep("overview");
-        setContainer(null);
-        setReceiveItems(receiveItems.map(item => ({ ...item, currentReceiveQty: 0 })));
-      }
+      setDiscardConfirmOpen(true);
     } else if (step === "container") {
       setStep("overview");
     } else {
       onOpenChange(false);
     }
+  };
+
+  const confirmDiscardCurrentContainer = () => {
+    setStep("overview");
+    setContainer(null);
+    setContainerNo("");
+    setScanInput("");
+    setReceiveItems(receiveItems.map(item => ({ ...item, currentReceiveQty: 0 })));
+    setDiscardConfirmOpen(false);
   };
 
   const handleCancel = () => {
@@ -234,7 +244,8 @@ export function ReceiveDialog({
   const itemsInContainer = receiveItems.filter(item => item.currentReceiveQty > 0);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -273,7 +284,7 @@ export function ReceiveDialog({
                     {items.reduce((sum, item) => sum + item.plannedQty, 0)}
                   </div>
                 </div>
-                <div className="border rounded-lg p-4 bg-primary-light/30 border-primary/30">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
                   <div className="text-sm text-muted-foreground mb-1">剩余待收</div>
                   <div className="text-2xl text-primary">
                     {items.reduce((sum, item) => sum + (item.plannedQty - item.receivedQty), 0)}
@@ -283,9 +294,9 @@ export function ReceiveDialog({
 
               {/* SKU清单表格 */}
               <div className="border rounded-lg overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                  <Table>
+                    <TableHeader>
+                    <DataTableHeaderRow>
                       <TableHead>SKU</TableHead>
                       <TableHead>商品名称</TableHead>
                       <TableHead>规格</TableHead>
@@ -293,7 +304,7 @@ export function ReceiveDialog({
                       <TableHead className="text-right">已收数量</TableHead>
                       <TableHead className="text-right">剩余待收</TableHead>
                       <TableHead className="text-center">状态</TableHead>
-                    </TableRow>
+                    </DataTableHeaderRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => {
@@ -322,14 +333,9 @@ export function ReceiveDialog({
                             </span>
                           </TableCell>
                           <TableCell className="text-center">
-                            {isCompleted ? (
-                              <Badge variant="secondary" className="gap-1">
-                                <CheckCircle2 className="w-3 h-3" />
-                                已收齐
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">待收货</Badge>
-                            )}
+                            <StatusBadge
+                              {...itemProgressStatusMap[isCompleted ? "receive_completed" : "receive_pending"]}
+                            />
                           </TableCell>
                         </TableRow>
                       );
@@ -339,25 +345,26 @@ export function ReceiveDialog({
               </div>
 
               {/* 提示信息 */}
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-900">
-                    <div className="mb-1">收货流程说明：</div>
-                    <ul className="list-disc list-inside space-y-1">
-                      <li>每次收货需要先绑定一个容器（托盘/周转箱等）</li>
-                      <li>扫描SKU条形码，商品会自动加入到容器中</li>
-                      <li>一个入库单可以分多次收货，每次使用不同的容器</li>
-                    </ul>
+              <NoticePanel tone="info" title="收货流程说明" className="mt-4">
+                <ul className="list-disc list-inside space-y-1">
+                  <li>每次收货需要先绑定一个容器（托盘/周转箱等）</li>
+                  <li>扫描SKU条形码，商品会自动加入到容器中</li>
+                  <li>一个入库单可以分多次收货，每次使用不同的容器</li>
+                </ul>
+                {stagingLocation && (
+                  <div className="mt-3 rounded border border-info-200 bg-background/70 px-3 py-2">
+                    本次收货会先进入虚拟库位：
+                    <code className="mx-1 text-primary">{stagingLocation.code}</code>
+                    {stagingLocation.name}
                   </div>
-                </div>
-              </div>
+                )}
+              </NoticePanel>
             </div>
           )}
 
           {/* 步骤1：绑定容器 */}
           {step === "container" && (
-            <div className="border rounded-lg p-6 bg-primary-light/30">
+            <div className="rounded-lg border bg-primary/5 p-6">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                   <Package className="w-5 h-5" />
@@ -423,7 +430,7 @@ export function ReceiveDialog({
           {step === "scan" && container && (
             <>
               {/* 当前容器信息 */}
-              <div className="border rounded-lg p-4 bg-primary-light/30">
+              <div className="rounded-lg border bg-primary/5 p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
@@ -455,7 +462,7 @@ export function ReceiveDialog({
                 </Label>
                 <Input
                   ref={scanInputRef}
-                  placeholder="扫描SKU或��形码..."
+                  placeholder="扫描SKU或条形码..."
                   value={scanInput}
                   onChange={(e) => setScanInput(e.target.value)}
                   onKeyDown={handleScan}
@@ -516,7 +523,7 @@ export function ReceiveDialog({
                 <div className="border rounded-lg overflow-hidden">
                   <Table>
                     <TableHeader>
-                      <TableRow style={{ backgroundColor: "var(--table-header-bg)" }}>
+                      <DataTableHeaderRow>
                         <TableHead className="w-12"></TableHead>
                         <TableHead>SKU</TableHead>
                         <TableHead>商品名称</TableHead>
@@ -526,7 +533,7 @@ export function ReceiveDialog({
                         <TableHead className="text-right">已收数量</TableHead>
                         <TableHead className="text-right">本次收货</TableHead>
                         <TableHead className="text-right">剩余待收</TableHead>
-                      </TableRow>
+                      </DataTableHeaderRow>
                     </TableHeader>
                     <TableBody>
                       {receiveItems.map((item) => {
@@ -537,7 +544,7 @@ export function ReceiveDialog({
                         return (
                           <TableRow
                             key={item.sku}
-                            className={isInContainer ? "bg-primary-light/30 border-l-4 border-l-primary" : ""}
+                            className={isInContainer ? "border-l-4 border-l-primary bg-primary/5" : ""}
                           >
                             <TableCell>
                               {isInContainer && (
@@ -592,7 +599,7 @@ export function ReceiveDialog({
                 </div>
                 
                 {itemsInContainer.length > 0 && (
-                  <div className="mt-4 p-4 bg-primary-light/20 border border-primary/30 rounded-lg">
+                  <NoticePanel tone="primary" className="mt-4">
                     <div className="text-sm mb-2">容器 <code className="font-mono text-primary">{container.containerNo}</code> 中的商品：</div>
                     <div className="flex flex-wrap gap-2">
                       {itemsInContainer.map((item) => (
@@ -601,7 +608,7 @@ export function ReceiveDialog({
                         </Badge>
                       ))}
                     </div>
-                  </div>
+                  </NoticePanel>
                 )}
               </div>
 
@@ -646,6 +653,17 @@ export function ReceiveDialog({
           )}
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <ConfirmActionDialog
+        destructive
+        confirmLabel="确认返回"
+        description="当前容器中已添加商品，返回后本次容器扫描数量会被清空。"
+        onConfirm={confirmDiscardCurrentContainer}
+        onOpenChange={setDiscardConfirmOpen}
+        open={discardConfirmOpen}
+        title="返回收货概览"
+      />
+    </>
   );
 }

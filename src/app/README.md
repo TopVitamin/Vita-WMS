@@ -53,14 +53,14 @@
 | ⚠️ 警告色     | 5 个色阶   | 警告提示、低库存             |
 | ❌ 错误色     | 5 个色阶   | 错误提示、缺货               |
 | ℹ️ 信息色     | 5 个色阶   | 信息提示、待处理             |
-| 📦 WMS 状态色 | 7 个       | 在库、低库存、缺货、待处理等 |
+| 📦 业务状态映射 | 应用层配置 | 在库、低库存、缺货、待处理等 |
 
 **示例**:
 
 ```css
 --purple-600: #9333ea; /* 品牌主色 */
---status-in-stock: #22c55e; /* 在库状态 */
---status-low-stock: #f59e0b; /* 低库存 */
+--success-500: #22c55e; /* 成功语义色 */
+--warning-500: #f59e0b; /* 警告语义色 */
 ```
 
 ### 2. 间距系统（基于 4px）
@@ -147,15 +147,17 @@ Button, Input, Select, Table, Card, Badge, Dialog, Dropdown, Tooltip, Form... �
 
 ### 状态色体系
 
-| 状态   | Token                   | 颜色    | 使用场景 |
-| ------ | ----------------------- | ------- | -------- |
-| 在库   | `--status-in-stock`     | 🟢 绿色 | 库存充足 |
-| 低库存 | `--status-low-stock`    | 🟡 橙色 | 需要补货 |
-| 缺货   | `--status-out-of-stock` | 🔴 红色 | 无库存   |
-| 待处理 | `--status-pending`      | 🔵 蓝色 | 等待操作 |
-| 处理中 | `--status-processing`   | 🟣 紫色 | 进行中   |
-| 已完成 | `--status-completed`    | 🟢 深绿 | 操作完成 |
-| 已取消 | `--status-cancelled`    | ⚪ 灰色 | 已取消   |
+业务状态不再定义为 CSS Token。状态展示应通过 `StatusBadge + statusMap` 映射到语义色。
+
+| 状态   | 推荐 tone | 使用场景 |
+| ------ | --------- | -------- |
+| 在库   | `success` | 库存充足 |
+| 低库存 | `warning` | 需要补货 |
+| 缺货   | `error`   | 无库存   |
+| 待处理 | `info`    | 等待操作 |
+| 处理中 | `primary` | 进行中   |
+| 已完成 | `success` | 操作完成 |
+| 已取消 | `muted`   | 已取消   |
 
 ### 数据格式规范
 
@@ -289,8 +291,9 @@ import { LoadingState } from "./components/wms/LoadingState";
 ### ✅ 推荐
 
 ```jsx
-// 使用语义化 Token
-<div style={{ color: 'var(--status-in-stock)' }}>在库</div>
+// 使用状态映射和统一状态组件
+const status = inventoryStatusMap[item.stockStatus];
+<StatusBadge {...status} />
 
 // 使用专用状态组件
 {loading && <LoadingState />}

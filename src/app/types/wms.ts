@@ -1,10 +1,10 @@
-export type WmsStatusTone =
-  | "success"
-  | "warning"
-  | "error"
-  | "info"
-  | "muted"
-  | "primary";
+export type {
+  DesignStatusTone,
+  KpiMetric,
+  OperationLogItem,
+  WmsStatusTone,
+  WorkflowStep,
+} from "./design-system";
 
 export interface SkuItem {
   id: string;
@@ -39,6 +39,7 @@ export interface InventoryItem {
   availableStock: number;
   frozenStock: number;
   qualityCheckStock: number;
+  pendingPutawayStock: number;
   inTransitStock: number;
   safetyStock: number;
   locationCount: number;
@@ -66,27 +67,4 @@ export interface PickingTask {
   createTime: string;
   estimatedTime: string;
   actualTime: string | null;
-}
-
-export interface KpiMetric {
-  label: string;
-  value: string | number;
-  unit?: string;
-  tone?: WmsStatusTone;
-  helper?: string;
-}
-
-export interface WorkflowStep {
-  id: string;
-  label: string;
-  description?: string;
-}
-
-export interface OperationLogItem {
-  id: string;
-  time: string;
-  operator?: string;
-  action: string;
-  detail?: string;
-  tone?: WmsStatusTone;
 }
