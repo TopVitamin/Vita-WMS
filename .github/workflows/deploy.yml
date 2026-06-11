@@ -25,21 +25,13 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Install SSH key
+      - name: Deploy via webhook
         env:
-          SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
-          SSH_HOST: ${{ secrets.SERVER_HOST }}
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Deploy to server
-        env:
-          SSH_USER: ${{ secrets.SERVER_USER }}
-          SSH_HOST: ${{ secrets.SERVER_HOST }}
-        run: |
-          rsync -avz --delete -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            dist/ \
-            "$SSH_USER@$SSH_HOST:/var/www/pmvitamin.com/projects/Vita-WMS/"
+          cd dist
+          tar czf ../deploy.tar.gz .
+          cd ..
+          curl -s -X POST https://pmvitamin.com/deploy/Vita-WMS \
+            -H "Authorization: Bearer $DEPLOY_TOKEN" \
+            --data-binary @deploy.tar.gz
