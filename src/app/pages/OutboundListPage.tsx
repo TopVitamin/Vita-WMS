@@ -243,11 +243,11 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部客户</SelectItem>
-              <SelectItem value="Amazon-US">Amazon-US</SelectItem>
-              <SelectItem value="Shopify-EU">Shopify-EU</SelectItem>
-              <SelectItem value="eBay-UK">eBay-UK</SelectItem>
-              <SelectItem value="Walmart-US">Walmart-US</SelectItem>
+              <SelectItem value="天猫旗舰店">天猫旗舰店</SelectItem>
+              <SelectItem value="京东自营">京东自营</SelectItem>
+              <SelectItem value="抖音商城">抖音商城</SelectItem>
               <SelectItem value="深圳仓库">深圳仓库</SelectItem>
+              <SelectItem value="华东批发客户">华东批发客户</SelectItem>
             </SelectContent>
           </Select>
           <Select value={carrierFilter} onValueChange={setCarrierFilter}>
@@ -256,11 +256,9 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
-              <SelectItem value="FedEx">FedEx</SelectItem>
-              <SelectItem value="DHL">DHL</SelectItem>
-              <SelectItem value="UPS">UPS</SelectItem>
-              <SelectItem value="USPS">USPS</SelectItem>
               <SelectItem value="顺丰">顺丰</SelectItem>
+              <SelectItem value="中通">中通</SelectItem>
+              <SelectItem value="圆通">圆通</SelectItem>
             </SelectContent>
           </Select>
           <Button>

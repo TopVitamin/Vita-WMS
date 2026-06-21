@@ -82,8 +82,8 @@ function AuthScreen({ initialTab, onAuthenticated }: AuthScreenProps) {
             <Warehouse className="h-7 w-7" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">Vita-WMS</h1>
-            <p className="text-sm text-muted-foreground mt-1">跨境电商海外仓作业演示系统</p>
+            <h1 className="text-2xl font-semibold tracking-tight">强盛 WMS</h1>
+            <p className="text-sm text-muted-foreground mt-1">国内仓储执行系统演示</p>
           </div>
         </div>
 
@@ -99,7 +99,7 @@ function AuthScreen({ initialTab, onAuthenticated }: AuthScreenProps) {
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   <div className="space-y-2">
                     <Label htmlFor="login-account">账号</Label>
-                    <Input id="login-account" defaultValue="demo@baoxia-wms.com" className="h-10" />
+                    <Input id="login-account" defaultValue="demo@qiangsheng-wms.com" className="h-10" />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -118,7 +118,7 @@ function AuthScreen({ initialTab, onAuthenticated }: AuthScreenProps) {
                 <form className="space-y-5" onSubmit={handleSubmit}>
                   <div className="space-y-2">
                     <Label htmlFor="register-name">姓名</Label>
-                    <Input id="register-name" placeholder="例如：海外仓运营" className="h-10" />
+                    <Input id="register-name" placeholder="例如：仓库主管" className="h-10" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="register-email">邮箱</Label>

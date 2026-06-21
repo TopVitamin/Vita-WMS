@@ -73,7 +73,7 @@ const seedPutawayOrders: PutawayOrder[] = [
   {
     putawayNo: "PA-20250428-0002",
     inboundId: "IB-20250428-0002",
-    customerName: "eBay店铺",
+    customerName: "天猫旗舰店",
     warehouseArea: "B区",
     createTime: "2025-04-28 10:15:33",
     status: "上架中",

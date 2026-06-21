@@ -24,24 +24,24 @@ const mockOutboundDetail = {
   outboundType: "b2c",
   orderType: "multi_mixed",
   platformOrderNo: "AMZ-EU-2024-034512",
-  customer: "Amazon-EU",
+  customer: "华东批发客户",
   status: "picking",
   createdTime: "2024-10-15 11:30:00",
   createdBy: "张三",
   planShipDate: "2024-10-27",
   actualShipTime: "",
-  carrier: "DHL",
+  carrier: "专线物流",
   shippingService: "标准快递",
   trackingNo: "",
   note: "紧急订单，优先处理",
   packingRequirement: "需要气泡膜包装",
-  labelRequirement: "需打印Amazon FBA标签",
+  labelRequirement: "需打印客户收货标签",
   
   // 收货地址
   shippingAddress: {
-    recipient: "Amazon FBA Warehouse",
+    recipient: "华东批发客户收货仓",
     phone: "+49-123-456-7890",
-    address: "Amazon Logistik Center, Rheinberg Strasse 1, 47495 Rheinberg, Germany",
+    address: "上海市嘉定区物流园 1 号库",
   },
 
   items: [

@@ -10,7 +10,7 @@ import {
 import type { AppShellBrand, AppShellMenuItem } from "../components/layouts/AppShell";
 
 export const wmsBrandConfig: AppShellBrand = {
-  name: "Vita-WMS",
+  name: "强盛 WMS",
   Icon: Warehouse,
 };
 

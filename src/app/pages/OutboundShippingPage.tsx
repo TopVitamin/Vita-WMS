@@ -39,7 +39,7 @@ interface OutboundShippingPageProps {
   onNavigate?: (path: string) => void;
 }
 
-const carrierOptions = ["FedEx", "DHL", "UPS", "USPS", "顺丰"];
+const carrierOptions = ["顺丰", "中通", "圆通", "韵达", "直营网配"];
 
 function buildTrackingNo(carrier: string, packageNo: string) {
   const suffix = packageNo.replace(/\D/g, "").slice(-8).padStart(8, "0");
@@ -57,7 +57,7 @@ export default function OutboundShippingPage({ onNavigate }: OutboundShippingPag
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
-  const [carrier, setCarrier] = useState("FedEx");
+  const [carrier, setCarrier] = useState("顺丰");
   const [trackingNo, setTrackingNo] = useState("");
 
   const refreshPackages = () => setPackages(listOutboundPackages());
@@ -98,7 +98,7 @@ export default function OutboundShippingPage({ onNavigate }: OutboundShippingPag
     setLength(item.length?.toString() || "");
     setWidth(item.width?.toString() || "");
     setHeight(item.height?.toString() || "");
-    setCarrier(item.carrier === "-" ? "FedEx" : item.carrier);
+    setCarrier(item.carrier === "-" ? "顺丰" : item.carrier);
     setTrackingNo(item.trackingNo || "");
   };
 
