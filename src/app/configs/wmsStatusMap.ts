@@ -48,11 +48,8 @@ export const priorityStatusMap: Record<PriorityLevel, StatusDisplayConfig> = {
 export const inboundOrderStatusMap: Record<string, StatusDisplayConfig> = {
   pending: { label: "待收货", tone: "warning", Icon: Clock },
   receiving: { label: "收货中", tone: "info", Icon: Play },
-  in_progress: { label: "收货中", tone: "info", Icon: Play },
-  received: { label: "已收货", tone: "success", Icon: CheckCircle },
-  completed: { label: "已收货", tone: "success", Icon: CheckCircle },
-  shelved: { label: "已上架", tone: "primary" },
-  cancelled: { label: "已取消", tone: "muted" },
+  received: { label: "已完成", tone: "success", Icon: CheckCircle },
+  closed: { label: "已关闭", tone: "muted" },
 };
 
 export const outboundOrderStatusMap: Record<string, StatusDisplayConfig> = {
@@ -80,10 +77,9 @@ export const outboundPackageStatusMap: Record<string, StatusDisplayConfig> = {
 };
 
 export const outboundTypeStatusMap: Record<string, StatusDisplayConfig> = {
-  sales: { label: "销售出库", tone: "primary" },
-  transfer: { label: "调拨出库", tone: "info" },
-  return: { label: "退货出库", tone: "warning" },
-  other: { label: "其他出库", tone: "muted" },
+  b2c: { label: "电商 B2C 小单", tone: "primary" },
+  store_transfer: { label: "门店补货调拨", tone: "info" },
+  wholesale: { label: "批发大单", tone: "warning" },
 };
 
 export const orderStructureStatusMap: Record<string, StatusDisplayConfig> = {
@@ -93,14 +89,15 @@ export const orderStructureStatusMap: Record<string, StatusDisplayConfig> = {
 };
 
 export const waveStatusMap: Record<string, StatusDisplayConfig> = {
-  created: { label: "已创建", tone: "muted" },
-  assigned: { label: "已分配", tone: "info" },
+  created: { label: "待释放", tone: "muted" },
+  assigned: { label: "待拣货", tone: "info" },
   pending: { label: "待拣货", tone: "warning" },
   picking: { label: "拣货中", tone: "primary" },
   picked: { label: "已拣货", tone: "success" },
   sorting: { label: "分拣中", tone: "info" },
   sorted: { label: "已分拣", tone: "primary" },
   completed: { label: "已完成", tone: "success" },
+  shipped: { label: "已发货", tone: "success", Icon: CheckCircle },
   exception: { label: "异常", tone: "error", Icon: AlertTriangle },
   cancelled: { label: "已取消", tone: "muted" },
 };

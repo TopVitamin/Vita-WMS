@@ -1,4 +1,8 @@
-export type InboundOrderStatus = "pending" | "in_progress" | "completed" | "shelved" | "cancelled";
+/**
+ * ASN 生命周期只描述收货，不承载上架结果。
+ * 上架由 PutawayOrder 独立管理，避免“已上架”覆盖“已完成收货”的单据事实。
+ */
+export type InboundOrderStatus = "pending" | "receiving" | "received" | "closed";
 
 export interface InboundItem {
   sku: string;
@@ -8,6 +12,9 @@ export interface InboundItem {
   plannedQty: number;
   receivedQty: number;
   shelvedQty: number;
+  /** 默认按 3C 品类处理：收货后必须质检，免检品可在 ASN 明细中显式关闭。 */
+  inspectionRequired?: boolean;
+  inspectionStatus?: "免检" | "待质检" | "合格" | "不合格";
 }
 
 export interface ReceivingStagingLocation {
@@ -96,6 +103,7 @@ export interface ReceivedContainerSnapshot {
     productName: string;
     spec: string;
     qty: number;
+    inspectionRequired: boolean;
   }>;
 }
 
@@ -115,7 +123,7 @@ const seedDetails: InboundDetail[] = [
     id: "IB001042102963",
     referenceNo: "REF-2024-1028",
     customer: "ab00-HK买汇",
-    status: "in_progress",
+    status: "receiving",
     createdTime: "2024-10-28 09:30:00",
     createdBy: "张三",
     estimatedDate: "2024-10-30",
@@ -184,7 +192,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "快递包裹",
     deliveryMethod: "快递",
     plannedQty: 1,
-    status: "in_progress",
+    status: "receiving",
     receivedQty: 0,
   }),
   createInboundDetail({
@@ -194,7 +202,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "快递包裹",
     deliveryMethod: "快递",
     plannedQty: 1,
-    status: "in_progress",
+    status: "receiving",
     receivedQty: 0,
   }),
   createInboundDetail({
@@ -204,7 +212,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "箱",
     deliveryMethod: "送货 (顺丰)",
     plannedQty: 30,
-    status: "completed",
+    status: "received",
     receivedQty: 30,
     note: "紧急入库",
   }),
@@ -215,7 +223,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "箱",
     deliveryMethod: "送货 (2025P)",
     plannedQty: 2300,
-    status: "shelved",
+    status: "received",
     receivedQty: 2300,
     shelvedQty: 2300,
     note: "大批量入库",
@@ -227,7 +235,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "托盘/卡板",
     deliveryMethod: "-",
     plannedQty: 200,
-    status: "cancelled",
+    status: "closed",
     note: "客户取消订单",
   }),
 ];
@@ -312,7 +320,21 @@ function readDetails(): InboundDetail[] {
     sessionStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(seedDetails.map(toOrderListItem)));
     return seedDetails;
   }
-  return JSON.parse(stored);
+  return (JSON.parse(stored) as InboundDetail[]).map((detail) => ({
+    ...detail,
+    status: normalizeInboundStatus(detail.status),
+  }));
+}
+
+function normalizeInboundStatus(status: string): InboundOrderStatus {
+  const legacyStatusMap: Record<string, InboundOrderStatus> = {
+    in_progress: "receiving",
+    completed: "received",
+    shelved: "received",
+    cancelled: "closed",
+  };
+
+  return legacyStatusMap[status] || (status as InboundOrderStatus);
 }
 
 function saveDetails(details: InboundDetail[]) {
@@ -369,33 +391,59 @@ export function receiveInboundContainer(
   }
 
   const detail = details[detailIndex];
+  if (detail.status !== "pending" && detail.status !== "receiving") {
+    throw new Error("当前 ASN 不处于可收货状态");
+  }
+  if (!data.container.containerNo.trim()) {
+    throw new Error("请先绑定收货容器");
+  }
+
+  const receivedLines = data.items.filter((item) => item.currentReceiveQty > 0);
+  if (receivedLines.length === 0) {
+    throw new Error("本次收货数量必须大于 0");
+  }
+  for (const line of receivedLines) {
+    const sourceItem = detail.items.find((item) => item.sku === line.sku);
+    if (!sourceItem) throw new Error(`SKU ${line.sku} 不属于当前 ASN`);
+    if (!Number.isInteger(line.currentReceiveQty)) {
+      throw new Error(`SKU ${line.sku} 的收货数量必须为整数`);
+    }
+    const remainingQty = sourceItem.plannedQty - sourceItem.receivedQty;
+    if (line.currentReceiveQty > remainingQty) {
+      throw new Error(`SKU ${line.sku} 超额收货：本次最多可收 ${remainingQty} 件`);
+    }
+  }
+
   const stagingLocation = getReceivingStagingLocation(toOrderListItem(detail));
   const batchNo = `RCV-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${String(detail.receiveRecords.length + 1).padStart(3, "0")}`;
-  const receivedItems = data.items.map((item) => ({
+  const receivedItems = receivedLines.map((item) => ({
     sku: item.sku,
     productName: item.productName,
     spec: item.spec,
     qty: item.currentReceiveQty,
+    inspectionRequired: item.inspectionRequired ?? true,
   }));
   const receiveQty = receivedItems.reduce((sum, item) => sum + item.qty, 0);
 
   const updatedItems = detail.items.map((item) => {
-    const receivedItem = data.items.find((target) => target.sku === item.sku);
+    const receivedItem = receivedLines.find((target) => target.sku === item.sku);
     if (!receivedItem) return item;
+    const inspectionStatus: InboundItem["inspectionStatus"] =
+      receivedItem.inspectionRequired ?? true ? "待质检" : "免检";
     return {
       ...item,
       receivedQty: Math.min(item.plannedQty, item.receivedQty + receivedItem.currentReceiveQty),
+      inspectionStatus,
     };
   });
   const allReceived = updatedItems.every((item) => item.receivedQty >= item.plannedQty);
-  const allShelved = updatedItems.every((item) => item.shelvedQty >= item.plannedQty);
-  const newStatus: InboundOrderStatus = allShelved ? "shelved" : allReceived ? "completed" : "in_progress";
+  const newStatus: InboundOrderStatus = allReceived ? "received" : "receiving";
 
   const receiveRecord: ReceiveRecord = {
     batchNo,
     container: data.container,
     stagingLocation,
-    items: data.items.map((item) => ({ sku: item.sku, productName: item.productName, qty: item.currentReceiveQty })),
+    items: receivedLines.map((item) => ({ sku: item.sku, productName: item.productName, qty: item.currentReceiveQty })),
     receiveTime: new Date().toLocaleString("zh-CN"),
     receiver: "当前用户",
     note: data.note,
@@ -470,12 +518,40 @@ export function applyInboundPutawayCompletion(
 
   const updatedDetail: InboundDetail = {
     ...detail,
-    status: allShelved ? "shelved" : detail.status,
+    // ASN 的收货状态不随上架改变；上架进度由独立的上架单承载。
+    status: detail.status,
     items: updatedItems,
     putawayRecords: [...putawayRecords, ...detail.putawayRecords],
     logs: [log, ...detail.logs],
   };
 
+  details[detailIndex] = updatedDetail;
+  saveDetails(details);
+  return updatedDetail;
+}
+
+export function recordInboundInspectionResults(
+  inboundId: string,
+  results: Array<{ sku: string; result: "合格" | "不合格"; qty: number; note?: string }>
+): InboundDetail | undefined {
+  const details = readDetails();
+  const detailIndex = details.findIndex((item) => item.id === inboundId);
+  if (detailIndex === -1) return undefined;
+
+  const detail = details[detailIndex];
+  const now = new Date().toLocaleString("zh-CN");
+  const updatedItems = detail.items.map((item) => {
+    const result = results.find((entry) => entry.sku === item.sku);
+    return result ? { ...item, inspectionStatus: result.result } : item;
+  });
+  const log: InboundLog = {
+    time: now,
+    operator: "当前用户",
+    action: "质检",
+    detail: results.map((item) => `${item.sku} ${item.result} ${item.qty} 件`).join("；"),
+  };
+
+  const updatedDetail = { ...detail, items: updatedItems, logs: [log, ...detail.logs] };
   details[detailIndex] = updatedDetail;
   saveDetails(details);
   return updatedDetail;
@@ -490,7 +566,9 @@ export function completeInboundPutawayFromDetail(
     .map((item) => ({
       sku: item.sku,
       productName: item.productName,
-      qty: Math.max(item.receivedQty - item.shelvedQty, 0),
+      qty: item.inspectionStatus === "不合格" || item.inspectionStatus === "待质检"
+        ? 0
+        : Math.max(item.receivedQty - item.shelvedQty, 0),
       locationCode: input?.locationCode || "A-01-01-01",
       containerNo: input?.containerNo || "DETAIL-PUTAWAY",
       note: input?.note || "详情页一键上架",
@@ -505,10 +583,13 @@ export function closeInboundOrder(inboundId: string, reason: string, note: strin
   const details = readDetails();
   const detailIndex = details.findIndex((item) => item.id === inboundId);
   if (detailIndex === -1) return undefined;
+  const detail = details[detailIndex];
+  if (detail.status !== "pending") return undefined;
+
   const now = new Date().toLocaleString("zh-CN");
   details[detailIndex] = {
-    ...details[detailIndex],
-    status: "cancelled",
+    ...detail,
+    status: "closed",
     logs: [
       {
         time: now,

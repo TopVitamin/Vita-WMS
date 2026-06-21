@@ -25,6 +25,7 @@ export const wmsMenuConfig: AppShellMenuItem[] = [
     subItems: [
       { label: "到仓扫描", path: "/inbound/arrival-scan" },
       { label: "入库管理", path: "/inbound/management" },
+      { label: "质检任务", path: "/inbound/inspection" },
       { label: "上架管理", path: "/putaway/management" },
     ],
   },

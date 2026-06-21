@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import {
   closeInboundOrder,
   completeInboundPutawayFromDetail,
+  createInspectionTaskFromReceipt,
   createPutawayOrderFromReceipt,
   getInboundDetail,
   getReceivingStagingLocation,
@@ -44,16 +45,29 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
   const progress = totalPlanned > 0 ? (totalReceived / totalPlanned) * 100 : 0;
 
   const handleReceive = (data: any) => {
-    const result = receiveInboundContainer(detail.id, data);
-    const putawayOrder = createPutawayOrderFromReceipt(result.receipt);
-    setDetail(result.detail);
-    setReceiveDialogOpen(false);
-    toast.success(`收货成功，已生成上架单 ${putawayOrder.putawayNo}`);
+    try {
+      const result = receiveInboundContainer(detail.id, data);
+      const inspectionTask = createInspectionTaskFromReceipt(result.receipt);
+      const putawayOrder = inspectionTask ? undefined : createPutawayOrderFromReceipt(result.receipt);
+      setDetail(result.detail);
+      setReceiveDialogOpen(false);
+      toast.success(
+        inspectionTask
+          ? `收货成功，已生成质检任务 ${inspectionTask.taskNo}`
+          : `收货成功，已生成上架单 ${putawayOrder!.putawayNo}`
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "收货失败，请检查输入数据");
+    }
   };
 
   const handleClose = (data: { reason: string; note: string }) => {
     const updatedDetail = closeInboundOrder(detail.id, data.reason, data.note);
-    if (updatedDetail) setDetail(updatedDetail);
+    if (!updatedDetail) {
+      toast.error("只有待收货的 ASN 可以关闭");
+      return;
+    }
+    setDetail(updatedDetail);
 
     setCloseDialogOpen(false);
     toast.success("入库单已关闭");
@@ -66,12 +80,12 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
       return;
     }
     setDetail(updatedDetail);
-    toast.success(updatedDetail.status === "shelved" ? "上架完成，列表状态已更新为已上架" : "已记录本次上架");
+    toast.success("上架结果已记录；ASN 收货状态保持不变");
   };
 
-  const canReceive = detail.status === "pending" || detail.status === "in_progress";
-  const canPutaway = detail.status !== "cancelled" && totalReceived > totalShelved;
-  const canClose = detail.status !== "cancelled" && detail.status !== "shelved";
+  const canReceive = detail.status === "pending" || detail.status === "receiving";
+  const canPutaway = detail.status !== "closed" && totalReceived > totalShelved;
+  const canClose = detail.status === "pending";
 
   return (
     <WMSLayout title="入库单详情" currentPath="/inbound/management" onNavigate={handleNavigate}>

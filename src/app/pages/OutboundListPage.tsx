@@ -134,25 +134,33 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
   };
 
   const handleCreateWave = (targetOrderIds = selectedOrders) => {
-    const eligibleIds = targetOrderIds.filter((orderId) => {
-      const order = outboundOrders.find((item) => item.id === orderId);
-      return order && !order.waveNo && order.status === "pending";
-    });
-    const wave = createWaveFromOutboundOrders(eligibleIds, { picker: "李四" });
-    if (wave) {
-      refreshOrders();
-      setSelectedOrders([]);
-      toast.success(`已创建波次 ${wave.id}，包含 ${wave.orderCount} 个出库单`);
-    } else {
-      toast.error("请选择待处理且未分波的出库单");
+    try {
+      const eligibleIds = targetOrderIds.filter((orderId) => {
+        const order = outboundOrders.find((item) => item.id === orderId);
+        return order && !order.waveNo && order.status === "pending";
+      });
+      const wave = createWaveFromOutboundOrders(eligibleIds, { picker: "李四" });
+      if (wave) {
+        refreshOrders();
+        setSelectedOrders([]);
+        toast.success(`已创建波次 ${wave.id}，包含 ${wave.orderCount} 个出库单`);
+      } else {
+        toast.error("请选择待分波且未进入波次的出库单");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "创建波次失败");
     }
   };
 
   const handleCreateOrderPicking = (order: OutboundOrder) => {
-    const work = createPickingWorkFromOutboundOrder(order.id, { picker: "张三" });
-    if (work) {
-      refreshOrders();
-      toast.success(`已生成按单拣货单 ${work.taskNo}`);
+    try {
+      const work = createPickingWorkFromOutboundOrder(order.id, { picker: "张三" });
+      if (work) {
+        refreshOrders();
+        toast.success(`已生成按单拣货单 ${work.taskNo}`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "生成拣货任务失败");
     }
   };
 
@@ -203,10 +211,9 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
-              <SelectItem value="sales">销售出库</SelectItem>
-              <SelectItem value="transfer">调拨出库</SelectItem>
-              <SelectItem value="return">退货出库</SelectItem>
-              <SelectItem value="other">其他出库</SelectItem>
+              <SelectItem value="b2c">电商 B2C 小单</SelectItem>
+              <SelectItem value="store_transfer">门店补货调拨</SelectItem>
+              <SelectItem value="wholesale">批发大单</SelectItem>
             </SelectContent>
           </Select>
           <Select value={orderTypeFilter} onValueChange={setOrderTypeFilter}>
@@ -431,14 +438,14 @@ export default function OutboundListPage({ onNavigate }: OutboundListPageProps) 
                         <DropdownMenuContent align="end">
                           {!order.waveNo ? (
                             <>
-                              <DropdownMenuItem onClick={() => handleCreateWave([order.id])}>
+                              {order.outboundType !== "wholesale" && <DropdownMenuItem onClick={() => handleCreateWave([order.id])}>
                                 <Layers className="w-4 h-4 mr-2" />
                                 手动分波
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleCreateOrderPicking(order)}>
+                              </DropdownMenuItem>}
+                              {order.outboundType === "wholesale" && <DropdownMenuItem onClick={() => handleCreateOrderPicking(order)}>
                                 <Package className="w-4 h-4 mr-2" />
                                 按单生成拣货单
-                              </DropdownMenuItem>
+                              </DropdownMenuItem>}
                               <DropdownMenuItem className="text-error">取消订单</DropdownMenuItem>
                             </>
                           ) : (

@@ -61,9 +61,9 @@ export default function DashboardPage({ onNavigate }: DashboardPageProps) {
   // 动态获取缓存入库单与实时库存总量
   const currentInboundOrders = listInboundOrders();
   
-  // 统计待收货的订单数 (即 pending 或 in_progress)
+  // 统计待收货的 ASN（待收货或收货中）
   const pendingInboundCount = currentInboundOrders.length > 0 
-    ? currentInboundOrders.filter((o: any) => o.status === "pending" || o.status === "in_progress").length
+    ? currentInboundOrders.filter((o: any) => o.status === "pending" || o.status === "receiving").length
     : 12; // 兜底初始12个
 
   const inventoryItems = listInventoryItems();

@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { ReceiveDialog } from "../components/wms/ReceiveDialog";
 import {
   createPutawayOrderFromReceipt,
+  createInspectionTaskFromReceipt,
   getInboundItems,
   getInboundOrder,
   getReceivingStagingLocation,
@@ -189,10 +190,9 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
   const statusTabs = [
     { value: "all", label: "全部", statuses: [] },
     { value: "pending", label: "待收货", statuses: ["pending"] },
-    { value: "receiving", label: "收货中", statuses: ["in_progress"] },
-    { value: "received", label: "已收货", statuses: ["completed"] },
-    { value: "shelved", label: "已上架", statuses: ["shelved"] },
-    { value: "cancelled", label: "已取消", statuses: ["cancelled"] },
+    { value: "receiving", label: "收货中", statuses: ["receiving"] },
+    { value: "received", label: "已完成", statuses: ["received"] },
+    { value: "closed", label: "已关闭", statuses: ["closed"] },
   ];
 
   const activeTab = statusTabs.find((tab) => tab.value === activeStatus) ?? statusTabs[0];
@@ -235,15 +235,22 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
   };
 
   const handleReceive = (data: any) => {
-    const receiveQty = data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0);
-    const result = receiveInboundContainer(currentOrderId, data);
-    const putawayOrder = createPutawayOrderFromReceipt(result.receipt);
+    try {
+      const receiveQty = data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0);
+      const result = receiveInboundContainer(currentOrderId, data);
+      const inspectionTask = createInspectionTaskFromReceipt(result.receipt);
+      const putawayOrder = inspectionTask ? undefined : createPutawayOrderFromReceipt(result.receipt);
 
-    setOrders(result.orders);
-    toast.success(
-      `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，已生成上架单 ${putawayOrder.putawayNo}`
-    );
-    setReceiveDialogOpen(false);
+      setOrders(result.orders);
+      toast.success(
+        inspectionTask
+          ? `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，已生成质检任务 ${inspectionTask.taskNo}`
+          : `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，已生成上架单 ${putawayOrder!.putawayNo}`
+      );
+      setReceiveDialogOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "收货失败，请检查输入数据");
+    }
   };
 
   const handleNavigate = (path: string) => {
@@ -446,7 +453,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
                           setCurrentOrderId(order.id);
                           setReceiveDialogOpen(true);
                         }}
-                        disabled={order.status === "completed" || order.status === "cancelled" || order.status === "shelved"}
+                        disabled={order.status === "received" || order.status === "closed"}
                       >
                         <Package className="w-4 h-4" />
                         收货

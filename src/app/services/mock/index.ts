@@ -3,4 +3,5 @@ export * from "./inbound";
 export * from "./outbound";
 export * from "./picking";
 export * from "./putaway";
+export * from "./quality";
 export * from "./skus";

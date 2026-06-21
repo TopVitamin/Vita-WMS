@@ -15,7 +15,8 @@ export type OutboundOrderStatus =
   | "cancelled"
   | "exception";
 
-export type OutboundType = "sales" | "transfer" | "return" | "other";
+/** 强盛国内仓的三条核心出库链路。 */
+export type OutboundType = "b2c" | "store_transfer" | "wholesale";
 export type OrderStructureType = "single_single" | "single_multi" | "multi_mixed";
 
 export type WaveStatus =
@@ -26,6 +27,7 @@ export type WaveStatus =
   | "sorting"
   | "sorted"
   | "completed"
+  | "shipped"
   | "exception"
   | "cancelled";
 
@@ -127,7 +129,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001042103501",
     waveNo: null,
     pickingWorkNo: null,
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "single_single",
     customer: "Amazon-US",
     orderNo: "AMZ-2024-100563",
@@ -145,7 +147,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001042103502",
     waveNo: null,
     pickingWorkNo: null,
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "single_multi",
     customer: "Shopify-EU",
     orderNo: "SPF-2024-088745",
@@ -163,7 +165,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001042103503",
     waveNo: null,
     pickingWorkNo: null,
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "multi_mixed",
     customer: "eBay-UK",
     orderNo: "EBAY-2024-056321",
@@ -181,7 +183,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001042003497",
     waveNo: "WAVE-2024-0028",
     pickingWorkNo: "PK-20241020-0001",
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "single_multi",
     customer: "Shopify-US",
     orderNo: "SPF-2024-088888",
@@ -199,7 +201,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001042003498",
     waveNo: "WAVE-2024-0028",
     pickingWorkNo: "PK-20241020-0001",
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "single_single",
     customer: "Amazon-US",
     orderNo: "AMZ-2024-100321",
@@ -217,7 +219,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001042003499",
     waveNo: "WAVE-2024-0028",
     pickingWorkNo: "PK-20241020-0001",
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "single_multi",
     customer: "Walmart-US",
     orderNo: "WMT-2024-087654",
@@ -235,7 +237,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001041503480",
     waveNo: "WAVE-2024-0027",
     pickingWorkNo: "PK-20241015-0001",
-    outboundType: "sales",
+    outboundType: "b2c",
     orderType: "multi_mixed",
     customer: "Amazon-EU",
     orderNo: "AMZ-EU-2024-034512",
@@ -253,7 +255,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001041003450",
     waveNo: "WAVE-2024-0026",
     pickingWorkNo: "PK-20241010-0001",
-    outboundType: "transfer",
+    outboundType: "store_transfer",
     orderType: "multi_mixed",
     customer: "深圳仓库",
     orderNo: "TR-2024-002365",
@@ -271,7 +273,7 @@ const seedOutboundOrders: OutboundOrder[] = [
     id: "OB001040203398",
     waveNo: null,
     pickingWorkNo: null,
-    outboundType: "sales",
+    outboundType: "wholesale",
     orderType: "single_multi",
     customer: "Amazon-JP",
     orderNo: "AMZ-JP-2024-076543",
@@ -578,6 +580,23 @@ export function createWaveFromOutboundOrders(orderIds: string[], options?: { pic
   const waves = listWaveOrders();
   const selectedOrders = orders.filter((order) => orderIds.includes(order.id));
   if (selectedOrders.length === 0) return undefined;
+  if (selectedOrders.length !== orderIds.length || selectedOrders.some((order) => order.status !== "pending" || order.waveNo)) {
+    throw new Error("只能对待分波且未进入波次的出库单创建波次");
+  }
+
+  const businessType = selectedOrders[0].outboundType;
+  if (selectedOrders.some((order) => order.outboundType !== businessType)) {
+    throw new Error("不同出库类型不能混合分波");
+  }
+  if (businessType === "b2c" && new Set(selectedOrders.map((order) => order.carrier)).size > 1) {
+    throw new Error("B2C 小单只能按同一承运商合波");
+  }
+  if (businessType === "store_transfer" && new Set(selectedOrders.map((order) => order.customer)).size > 1) {
+    throw new Error("门店调拨只能按同一门店合波，确保整单齐套集货");
+  }
+  if (businessType === "wholesale" && selectedOrders.length !== 1) {
+    throw new Error("批发大单必须按单独立执行，不参与合波");
+  }
 
   const waveType = inferWaveType(selectedOrders);
   const sortingMode = inferSortingMode("by_wave", waveType, selectedOrders.length);
@@ -594,7 +613,8 @@ export function createWaveFromOutboundOrders(orderIds: string[], options?: { pic
     pickedQty: 0,
     pickProgress: 0,
     picker: options?.picker || null,
-    status: options?.picker ? "assigned" : "created",
+    // 创建波次只完成订单聚合；生成拣货任务才视为波次释放。
+    status: "created",
     createdAt: nowText(),
     createdBy: "当前用户",
   };
@@ -621,6 +641,7 @@ export function createPickingWorkFromWave(waveNo: string, options?: { picker?: s
   if (waveIndex === -1) return undefined;
 
   const wave = waves[waveIndex];
+  if (wave.status !== "created" && wave.status !== "assigned") return undefined;
   const works = listPickingWorks();
   const existing = works.find((work) => work.waveNo === waveNo);
   if (existing) return existing;
@@ -677,6 +698,12 @@ export function createPickingWorkFromOutboundOrder(orderId: string, options?: { 
   if (orderIndex === -1) return undefined;
 
   const order = orders[orderIndex];
+  if (order.outboundType !== "wholesale") {
+    throw new Error("只有批发大单可直接按单生成拣货任务；B2C 和门店调拨请先创建波次");
+  }
+  if (order.status !== "pending" || order.waveNo) {
+    throw new Error("当前出库单不处于可生成按单拣货任务的状态");
+  }
   const works = listPickingWorks();
   const existing = works.find((work) => work.outboundOrderIds.includes(orderId) && work.pickingMode === "by_order");
   if (existing) return existing;
@@ -874,6 +901,12 @@ export function createOutboundPackageFromReview(input: {
   const packages = listOutboundPackages();
   const orders = listOutboundOrders();
   const linkedOrder = input.orderNo ? resolveOutboundOrder(input.orderNo, orders) : null;
+  if (linkedOrder && linkedOrder.status !== "pending_review") {
+    throw new Error("只有待复核的出库单可生成包裹；请先完成拣货及必要的二次分拣");
+  }
+  if (input.items.length === 0 || input.items.some((item) => !Number.isInteger(item.qty) || item.qty <= 0)) {
+    throw new Error("包裹必须包含数量大于 0 的商品明细");
+  }
   const packageNo = nextPackageNo(packages);
   const status: OutboundPackageStatus = input.weight ? "pending_ship" : "pending_weight";
 
@@ -924,6 +957,10 @@ export function confirmOutboundPackageWeight(
   const packages = listOutboundPackages();
   const packageIndex = packages.findIndex((pkg) => pkg.packageNo === packageNo || pkg.boxNo === packageNo);
   if (packageIndex === -1) return undefined;
+  if (packages[packageIndex].status !== "pending_weight") return undefined;
+  if (!Number.isFinite(input.weight) || input.weight <= 0) {
+    throw new Error("重量必须大于 0");
+  }
 
   const outboundPackage: OutboundPackage = {
     ...packages[packageIndex],
@@ -958,11 +995,17 @@ export function shipOutboundPackage(packageNo: string, input?: { trackingNo?: st
   const packages = listOutboundPackages();
   const packageIndex = packages.findIndex((pkg) => pkg.packageNo === packageNo || pkg.boxNo === packageNo);
   if (packageIndex === -1) return undefined;
+  if (packages[packageIndex].status !== "pending_ship") return undefined;
+  const carrier = input?.carrier || packages[packageIndex].carrier;
+  const trackingNo = input?.trackingNo || packages[packageIndex].trackingNo;
+  if (!carrier || carrier === "-" || !trackingNo) {
+    throw new Error("完成出库前必须确认承运商和运单号");
+  }
 
   const outboundPackage: OutboundPackage = {
     ...packages[packageIndex],
-    carrier: input?.carrier || packages[packageIndex].carrier,
-    trackingNo: input?.trackingNo || packages[packageIndex].trackingNo,
+    carrier,
+    trackingNo,
     status: "shipped",
     shippedAt: nowText(),
   };
@@ -981,7 +1024,18 @@ export function shipOutboundPackage(packageNo: string, input?: { trackingNo?: st
 
   saveStorage(OUTBOUND_PACKAGE_STORAGE_KEY, packages);
   saveStorage(OUTBOUND_STORAGE_KEY, orders);
+  refreshWaveShippingState(orders);
   return outboundPackage;
+}
+
+function refreshWaveShippingState(orders: OutboundOrder[]) {
+  const waves = listWaveOrders().map((wave) => {
+    const waveOrders = orders.filter((order) => wave.outboundOrderIds.includes(order.id));
+    return waveOrders.length > 0 && waveOrders.every((order) => order.status === "shipped")
+      ? { ...wave, status: "shipped" as WaveStatus }
+      : wave;
+  });
+  saveStorage(WAVE_STORAGE_KEY, waves);
 }
 
 export function completePackingForOutboundOrder(input: {

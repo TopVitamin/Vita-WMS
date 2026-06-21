@@ -130,14 +130,20 @@ export default function OutboundShippingPage({ onNavigate }: OutboundShippingPag
       return;
     }
 
-    const updated = confirmOutboundPackageWeight(selectedPackage.packageNo, {
-      weight: parsedWeight,
-      length: length ? Number(length) : undefined,
-      width: width ? Number(width) : undefined,
-      height: height ? Number(height) : undefined,
-      carrier,
-      trackingNo: trackingNo || buildTrackingNo(carrier, selectedPackage.packageNo),
-    });
+    let updated;
+    try {
+      updated = confirmOutboundPackageWeight(selectedPackage.packageNo, {
+        weight: parsedWeight,
+        length: length ? Number(length) : undefined,
+        width: width ? Number(width) : undefined,
+        height: height ? Number(height) : undefined,
+        carrier,
+        trackingNo: trackingNo || buildTrackingNo(carrier, selectedPackage.packageNo),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "称重确认失败");
+      return;
+    }
 
     if (!updated) {
       toast.error("称重确认失败");
@@ -152,10 +158,16 @@ export default function OutboundShippingPage({ onNavigate }: OutboundShippingPag
   const handleShip = () => {
     if (!selectedPackage) return;
     const finalTrackingNo = trackingNo || selectedPackage.trackingNo || buildTrackingNo(carrier, selectedPackage.packageNo);
-    const shipped = shipOutboundPackage(selectedPackage.packageNo, {
-      carrier,
-      trackingNo: finalTrackingNo,
-    });
+    let shipped;
+    try {
+      shipped = shipOutboundPackage(selectedPackage.packageNo, {
+        carrier,
+        trackingNo: finalTrackingNo,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "确认出库失败");
+      return;
+    }
 
     if (!shipped) {
       toast.error("确认出库失败");

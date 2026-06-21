@@ -21,7 +21,7 @@ interface OutboundDetailPageProps {
 const mockOutboundDetail = {
   id: "OB001041503480",
   waveNo: "WAVE-2024-0027",
-  outboundType: "sales",
+  outboundType: "b2c",
   orderType: "multi_mixed",
   platformOrderNo: "AMZ-EU-2024-034512",
   customer: "Amazon-EU",
