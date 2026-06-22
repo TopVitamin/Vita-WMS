@@ -12,12 +12,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { Progress } from "../components/ui/progress";
 import { toast } from "sonner";
 import {
-  completePickingWorkByWave,
+  completeWavePickingDirectly,
   completeWaveOrder,
   completeWaveSorting,
-  createPickingWorkFromWave,
   getWaveOrder,
-  startPickingWorkByWave,
+  startWavePickingDirectly,
+  submitWave,
   startWaveSorting,
   type WaveOrder,
 } from "../services/mock";
@@ -401,29 +401,29 @@ export default function WaveDetailPage({ onNavigate, waveId }: WaveDetailPagePro
   const pickProgress = detail.totalQty > 0 ? (detail.pickedQty / detail.totalQty) * 100 : 0;
   const orderProgress = detail.outboundOrders.filter((o) => o.pickStatus === "picked").length;
 
-  const canAssignPicker = detail.status === "created" || detail.status === "pending";
-  const canStartPicking = ["created", "assigned", "pending"].includes(detail.status);
+  const canAssignPicker = detail.status === "created";
+  const canStartPicking = detail.status === "assigned";
   const canCompletePicking = detail.status === "picking";
   const canStartSorting = detail.status === "picked" && waveOrder?.sortingMode !== "none";
   const canCompleteSorting = detail.status === "sorting";
   const canCompleteWave = detail.status === "sorted" || (detail.status === "picked" && waveOrder?.sortingMode === "none");
 
   const handleAssignPicker = () => {
-    const work = createPickingWorkFromWave(detail.id, { picker: detail.picker === "-" ? "李四" : detail.picker });
-    syncWaveDetail(getWaveOrder(detail.id));
-    toast.success(work ? `拣货员已指定，拣货单 ${work.taskNo} 已生成` : "拣货员已指定");
+    const wave = submitWave(detail.id);
+    syncWaveDetail(wave);
+    toast.success(wave ? `波次 ${detail.id} 已提交，可开始拣货` : "当前波次不能提交");
   };
 
   const handleStartPicking = () => {
-    const result = startPickingWorkByWave(detail.id);
-    syncWaveDetail(result.wave);
+    const wave = startWavePickingDirectly(detail.id);
+    syncWaveDetail(wave);
     toast.success(`波次 ${detail.id} 已开始拣货`);
   };
 
   const handleCompletePicking = () => {
-    const result = completePickingWorkByWave(detail.id);
-    syncWaveDetail(result.wave);
-    toast.success(`波次 ${detail.id} 已完成拣货，出库单已进入${result.wave?.sortingMode === "none" ? "待复核" : "待分拣"}`);
+    const wave = completeWavePickingDirectly(detail.id);
+    syncWaveDetail(wave);
+    toast.success(`波次 ${detail.id} 已完成拣货，出库单已进入${wave?.sortingMode === "none" ? "待复核" : "待分拣"}`);
   };
 
   const handleStartSorting = () => {

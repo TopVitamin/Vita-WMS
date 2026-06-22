@@ -575,6 +575,47 @@ export function getSelectedWaveId(): string | null {
   return sessionStorage.getItem(SELECTED_WAVE_KEY);
 }
 
+/** 波次与拣货合并：提交波次后即可直接在波次上执行拣货，不创建独立拣货单。 */
+export function submitWave(waveNo: string): WaveOrder | undefined {
+  const waves = listWaveOrders();
+  const index = waves.findIndex((wave) => wave.id === waveNo);
+  if (index < 0 || waves[index].status !== "created") return undefined;
+  const wave = { ...waves[index], status: "assigned" as WaveStatus };
+  waves[index] = wave;
+  saveStorage(WAVE_STORAGE_KEY, waves);
+  saveStorage(OUTBOUND_STORAGE_KEY, listOutboundOrders().map((order) =>
+    wave.outboundOrderIds.includes(order.id) ? { ...order, status: "pending_pick" as OutboundOrderStatus } : order
+  ));
+  return wave;
+}
+
+export function startWavePickingDirectly(waveNo: string): WaveOrder | undefined {
+  const waves = listWaveOrders();
+  const index = waves.findIndex((wave) => wave.id === waveNo);
+  if (index < 0 || waves[index].status !== "assigned") return undefined;
+  const wave = { ...waves[index], status: "picking" as WaveStatus, picker: waves[index].picker || "当前用户" };
+  waves[index] = wave;
+  saveStorage(WAVE_STORAGE_KEY, waves);
+  saveStorage(OUTBOUND_STORAGE_KEY, listOutboundOrders().map((order) =>
+    wave.outboundOrderIds.includes(order.id) ? { ...order, status: "picking" as OutboundOrderStatus, picker: wave.picker } : order
+  ));
+  return wave;
+}
+
+export function completeWavePickingDirectly(waveNo: string): WaveOrder | undefined {
+  const waves = listWaveOrders();
+  const index = waves.findIndex((wave) => wave.id === waveNo);
+  if (index < 0 || waves[index].status !== "picking") return undefined;
+  const wave = { ...waves[index], status: "picked" as WaveStatus, pickedQty: waves[index].totalQty, pickProgress: 100 };
+  waves[index] = wave;
+  saveStorage(WAVE_STORAGE_KEY, waves);
+  const nextStatus: OutboundOrderStatus = wave.sortingMode === "none" ? "pending_review" : "pending_sort";
+  saveStorage(OUTBOUND_STORAGE_KEY, listOutboundOrders().map((order) =>
+    wave.outboundOrderIds.includes(order.id) ? { ...order, status: nextStatus } : order
+  ));
+  return wave;
+}
+
 export function createWaveFromOutboundOrders(orderIds: string[], options?: { picker?: string }): WaveOrder | undefined {
   const orders = listOutboundOrders();
   const waves = listWaveOrders();

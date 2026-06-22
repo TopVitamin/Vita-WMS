@@ -90,11 +90,11 @@ export const orderStructureStatusMap: Record<string, StatusDisplayConfig> = {
 };
 
 export const waveStatusMap: Record<string, StatusDisplayConfig> = {
-  created: { label: "待释放", tone: "muted" },
-  assigned: { label: "待拣货", tone: "info" },
+  created: { label: "待提交", tone: "muted" },
+  assigned: { label: "已提交", tone: "info" },
   pending: { label: "待拣货", tone: "warning" },
   picking: { label: "拣货中", tone: "primary" },
-  picked: { label: "已拣货", tone: "success" },
+  picked: { label: "拣货完成", tone: "success" },
   sorting: { label: "分拣中", tone: "info" },
   sorted: { label: "已分拣", tone: "primary" },
   completed: { label: "已完成", tone: "success" },
