@@ -1,8 +1,7 @@
 /**
- * ASN 生命周期只描述收货，不承载上架结果。
- * 上架由 PutawayOrder 独立管理，避免“已上架”覆盖“已完成收货”的单据事实。
+ * ASN 状态以项目单据口径为准；上架单独立记录作业明细，但 ASN 在全部上架后同步进入“已上架”。
  */
-export type InboundOrderStatus = "pending" | "receiving" | "received" | "closed";
+export type InboundOrderStatus = "pending" | "receiving" | "received" | "shelved" | "cancelled";
 
 export interface InboundItem {
   sku: string;
@@ -212,7 +211,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "箱",
     deliveryMethod: "送货 (顺丰)",
     plannedQty: 30,
-    status: "received",
+    status: "shelved",
     receivedQty: 30,
     note: "紧急入库",
   }),
@@ -235,7 +234,7 @@ const seedDetails: InboundDetail[] = [
     tracking: "托盘/卡板",
     deliveryMethod: "-",
     plannedQty: 200,
-    status: "closed",
+    status: "cancelled",
     note: "客户取消订单",
   }),
 ];
@@ -330,8 +329,7 @@ function normalizeInboundStatus(status: string): InboundOrderStatus {
   const legacyStatusMap: Record<string, InboundOrderStatus> = {
     in_progress: "receiving",
     completed: "received",
-    shelved: "received",
-    cancelled: "closed",
+    closed: "cancelled",
   };
 
   return legacyStatusMap[status] || (status as InboundOrderStatus);
@@ -437,7 +435,8 @@ export function receiveInboundContainer(
     };
   });
   const allReceived = updatedItems.every((item) => item.receivedQty >= item.plannedQty);
-  const newStatus: InboundOrderStatus = allReceived ? "received" : "receiving";
+  const allShelved = updatedItems.every((item) => item.shelvedQty >= item.plannedQty);
+  const newStatus: InboundOrderStatus = allShelved ? "shelved" : allReceived ? "received" : "receiving";
 
   const receiveRecord: ReceiveRecord = {
     batchNo,
@@ -518,8 +517,7 @@ export function applyInboundPutawayCompletion(
 
   const updatedDetail: InboundDetail = {
     ...detail,
-    // ASN 的收货状态不随上架改变；上架进度由独立的上架单承载。
-    status: detail.status,
+    status: allShelved ? "shelved" : detail.status,
     items: updatedItems,
     putawayRecords: [...putawayRecords, ...detail.putawayRecords],
     logs: [log, ...detail.logs],
@@ -589,7 +587,7 @@ export function closeInboundOrder(inboundId: string, reason: string, note: strin
   const now = new Date().toLocaleString("zh-CN");
   details[detailIndex] = {
     ...detail,
-    status: "closed",
+    status: "cancelled",
     logs: [
       {
         time: now,

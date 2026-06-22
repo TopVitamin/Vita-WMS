@@ -48,8 +48,9 @@ export const priorityStatusMap: Record<PriorityLevel, StatusDisplayConfig> = {
 export const inboundOrderStatusMap: Record<string, StatusDisplayConfig> = {
   pending: { label: "待收货", tone: "warning", Icon: Clock },
   receiving: { label: "收货中", tone: "info", Icon: Play },
-  received: { label: "已完成", tone: "success", Icon: CheckCircle },
-  closed: { label: "已关闭", tone: "muted" },
+  received: { label: "已收货", tone: "success", Icon: CheckCircle },
+  shelved: { label: "已上架", tone: "primary", Icon: CheckCircle },
+  cancelled: { label: "已取消", tone: "muted" },
 };
 
 export const outboundOrderStatusMap: Record<string, StatusDisplayConfig> = {

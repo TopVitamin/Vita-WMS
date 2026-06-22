@@ -80,11 +80,11 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
       return;
     }
     setDetail(updatedDetail);
-    toast.success("上架结果已记录；ASN 收货状态保持不变");
+    toast.success(updatedDetail.status === "shelved" ? "上架完成，ASN 已更新为已上架" : "已记录本次上架");
   };
 
   const canReceive = detail.status === "pending" || detail.status === "receiving";
-  const canPutaway = detail.status !== "closed" && totalReceived > totalShelved;
+  const canPutaway = detail.status !== "cancelled" && detail.status !== "shelved" && totalReceived > totalShelved;
   const canClose = detail.status === "pending";
 
   return (

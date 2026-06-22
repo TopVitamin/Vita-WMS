@@ -189,10 +189,11 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
 
   const statusTabs = [
     { value: "all", label: "全部", statuses: [] },
-    { value: "pending", label: "待收货", statuses: ["pending"] },
+    { value: "pending", label: "待入库", statuses: ["pending"] },
     { value: "receiving", label: "收货中", statuses: ["receiving"] },
-    { value: "received", label: "已完成", statuses: ["received"] },
-    { value: "closed", label: "已关闭", statuses: ["closed"] },
+    { value: "received", label: "已收货", statuses: ["received"] },
+    { value: "shelved", label: "已上架", statuses: ["shelved"] },
+    { value: "cancelled", label: "已取消", statuses: ["cancelled"] },
   ];
 
   const activeTab = statusTabs.find((tab) => tab.value === activeStatus) ?? statusTabs[0];
@@ -453,7 +454,7 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
                           setCurrentOrderId(order.id);
                           setReceiveDialogOpen(true);
                         }}
-                        disabled={order.status === "received" || order.status === "closed"}
+                        disabled={order.status === "received" || order.status === "shelved" || order.status === "cancelled"}
                       >
                         <Package className="w-4 h-4" />
                         收货
