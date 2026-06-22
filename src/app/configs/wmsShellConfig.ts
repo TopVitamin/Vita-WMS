@@ -35,17 +35,13 @@ export const wmsMenuConfig: AppShellMenuItem[] = [
     path: "/outbound",
     match: (path) =>
       path.startsWith("/outbound") ||
-      path.startsWith("/wave") ||
-      path.startsWith("/picking") ||
-      path.startsWith("/packing"),
+      path.startsWith("/wave"),
     subItems: [
       { label: "出库管理", path: "/outbound/management" },
       { label: "波次管理", path: "/wave/management" },
-      { label: "拣货任务", path: "/picking/tasks", match: (path) => path.startsWith("/picking") },
-      { label: "打包任务", path: "/packing/tasks", match: (path) => path.startsWith("/packing") },
-      { label: "播种", path: "/outbound/seeding" },
+      { label: "二次分拣（播种）", path: "/outbound/seeding" },
       { label: "出库复核", path: "/outbound/check" },
-      { label: "称重出库", path: "/outbound/shipping" },
+      { label: "称重", path: "/outbound/shipping" },
     ],
   },
   {

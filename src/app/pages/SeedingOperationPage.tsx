@@ -519,7 +519,7 @@ export default function SeedingOperationPage({ onNavigate }: SeedingOperationPag
   };
   
   return (
-    <WMSLayout title="图形化波次播种" currentPath="/outbound/seeding" onNavigate={onNavigate}>
+    <WMSLayout title="二次分拣（播种）" currentPath="/outbound/seeding" onNavigate={onNavigate}>
       <div className="p-6 space-y-6">
         {/* 步骤指示器 */}
         <Card>

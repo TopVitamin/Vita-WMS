@@ -180,9 +180,9 @@ export default function OutboundShippingPage({ onNavigate }: OutboundShippingPag
   };
 
   return (
-    <WMSLayout title="称重出库" currentPath="/outbound/shipping" onNavigate={onNavigate}>
+    <WMSLayout title="称重" currentPath="/outbound/shipping" onNavigate={onNavigate}>
       <WorkflowPageLayout
-        title="称重出库"
+        title="称重"
         description="扫描出库箱，完成称重、尺寸登记、面单补录和出库交接。"
         steps={
           <WorkflowStepBar
