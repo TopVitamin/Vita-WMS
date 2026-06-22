@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import {
   closeInboundOrder,
   completeInboundPutawayFromDetail,
-  createInspectionTaskFromReceipt,
   createPutawayOrderFromReceipt,
   getInboundDetail,
   getReceivingStagingLocation,
@@ -47,13 +46,13 @@ export default function InboundDetailPage({ onNavigate, inboundId }: InboundDeta
   const handleReceive = (data: any) => {
     try {
       const result = receiveInboundContainer(detail.id, data);
-      const inspectionTask = createInspectionTaskFromReceipt(result.receipt);
-      const putawayOrder = inspectionTask ? undefined : createPutawayOrderFromReceipt(result.receipt);
+      const requiresInspection = result.receipt.items.some((item) => item.inspectionRequired);
+      const putawayOrder = requiresInspection ? undefined : createPutawayOrderFromReceipt(result.receipt);
       setDetail(result.detail);
       setReceiveDialogOpen(false);
       toast.success(
-        inspectionTask
-          ? `收货成功，已生成质检任务 ${inspectionTask.taskNo}`
+        requiresInspection
+          ? `收货成功，收货单 ${result.receipt.receiptNo} 进入待质检`
           : `收货成功，已生成上架单 ${putawayOrder!.putawayNo}`
       );
     } catch (error) {

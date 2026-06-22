@@ -25,7 +25,6 @@ import { toast } from "sonner";
 import { ReceiveDialog } from "../components/wms/ReceiveDialog";
 import {
   createPutawayOrderFromReceipt,
-  createInspectionTaskFromReceipt,
   getInboundItems,
   getInboundOrder,
   getReceivingStagingLocation,
@@ -239,13 +238,13 @@ export default function InboundListPage({ onNavigate }: InboundListPageProps) {
     try {
       const receiveQty = data.items.reduce((sum: number, item: any) => sum + item.currentReceiveQty, 0);
       const result = receiveInboundContainer(currentOrderId, data);
-      const inspectionTask = createInspectionTaskFromReceipt(result.receipt);
-      const putawayOrder = inspectionTask ? undefined : createPutawayOrderFromReceipt(result.receipt);
+      const requiresInspection = result.receipt.items.some((item) => item.inspectionRequired);
+      const putawayOrder = requiresInspection ? undefined : createPutawayOrderFromReceipt(result.receipt);
 
       setOrders(result.orders);
       toast.success(
-        inspectionTask
-          ? `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，已生成质检任务 ${inspectionTask.taskNo}`
+        requiresInspection
+          ? `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，收货单 ${result.receipt.receiptNo} 待质检`
           : `收货成功！${receiveQty} 件进入 ${result.receipt.stagingLocation.code}，已生成上架单 ${putawayOrder!.putawayNo}`
       );
       setReceiveDialogOpen(false);

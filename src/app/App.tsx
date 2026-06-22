@@ -21,7 +21,6 @@ import CustomerManagementPage from "./pages/CustomerManagementPage";
 import DashboardPage from "./pages/DashboardPage";
 import DesignSystemPreviewPage from "./pages/DesignSystemPreviewPage";
 import InboundDetailPage from "./pages/InboundDetailPage";
-import InboundInspectionPage from "./pages/InboundInspectionPage";
 import InboundListPage from "./pages/InboundListPage";
 import InventoryAdjustmentPage from "./pages/InventoryAdjustmentPage";
 import InventoryDetailPage from "./pages/InventoryDetailPage";
@@ -275,7 +274,6 @@ function AppRoutes() {
       <Route path="/inbound/arrival-scan" element={protectedPage(ArrivalScanPage as RoutedPageComponent)} />
       <Route path="/inbound/management" element={protectedPage(InboundListPage as RoutedPageComponent)} />
       <Route path="/inbound/detail" element={protectedPage(InboundDetailPage as RoutedPageComponent)} />
-      <Route path="/inbound/inspection" element={protectedPage(InboundInspectionPage)} />
       <Route path="/putaway/management" element={protectedPage(PutawayListPage as RoutedPageComponent)} />
       <Route
         path="/putaway/detail/:putawayNo"

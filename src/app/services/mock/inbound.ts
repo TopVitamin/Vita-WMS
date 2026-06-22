@@ -37,6 +37,7 @@ export interface InboundOrderListItem {
 }
 
 export interface ReceiveRecord {
+  receiptNo: string;
   batchNo: string;
   container: { containerNo: string; containerType: string };
   stagingLocation: ReceivingStagingLocation;
@@ -44,6 +45,15 @@ export interface ReceiveRecord {
   receiveTime: string;
   receiver: string;
   note: string;
+  status: "已收货" | "待质检" | "质检中" | "已完成";
+  inspectionItems: Array<{
+    sku: string;
+    qty: number;
+    qualifiedQty: number | null;
+    defectiveQty: number | null;
+    conclusion: "合格" | "不合格" | "部分不合格" | null;
+    reason: string;
+  }>;
 }
 
 export interface PutawayRecord {
@@ -94,6 +104,7 @@ export interface ReceivedContainerSnapshot {
   customerName: string;
   referenceNo: string;
   receiveBatchNo: string;
+  receiptNo: string;
   receiveTime: string;
   stagingLocation: ReceivingStagingLocation;
   container: { containerNo: string; containerType: string };
@@ -104,6 +115,7 @@ export interface ReceivedContainerSnapshot {
     qty: number;
     inspectionRequired: boolean;
   }>;
+  putawayType?: "良品上架" | "次品上架";
 }
 
 const ORDERS_STORAGE_KEY = "wms_mock_inbound_orders";
@@ -137,6 +149,7 @@ const seedDetails: InboundDetail[] = [
     ],
     receiveRecords: [
       {
+        receiptNo: "RCV-20241028-001",
         batchNo: "RCV-20241028-001",
         container: { containerNo: "PLT-001", containerType: "托盘" },
         stagingLocation: receivingStagingLocations[0],
@@ -147,8 +160,14 @@ const seedDetails: InboundDetail[] = [
         receiveTime: "2024-10-28 14:20:00",
         receiver: "李四",
         note: "第一批收货",
+        status: "已完成",
+        inspectionItems: [
+          { sku: "SKU-001", qty: 40, qualifiedQty: 40, defectiveQty: 0, conclusion: "合格", reason: "" },
+          { sku: "SKU-002", qty: 20, qualifiedQty: 20, defectiveQty: 0, conclusion: "合格", reason: "" },
+        ],
       },
       {
+        receiptNo: "RCV-20241028-002",
         batchNo: "RCV-20241028-002",
         container: { containerNo: "PLT-002", containerType: "托盘" },
         stagingLocation: receivingStagingLocations[0],
@@ -159,6 +178,11 @@ const seedDetails: InboundDetail[] = [
         receiveTime: "2024-10-28 15:45:00",
         receiver: "李四",
         note: "",
+        status: "待质检",
+        inspectionItems: [
+          { sku: "SKU-001", qty: 20, qualifiedQty: null, defectiveQty: null, conclusion: null, reason: "" },
+          { sku: "SKU-002", qty: 10, qualifiedQty: null, defectiveQty: null, conclusion: null, reason: "" },
+        ],
       },
     ],
     putawayRecords: [
@@ -439,6 +463,7 @@ export function receiveInboundContainer(
   const newStatus: InboundOrderStatus = allShelved ? "shelved" : allReceived ? "received" : "receiving";
 
   const receiveRecord: ReceiveRecord = {
+    receiptNo: batchNo,
     batchNo,
     container: data.container,
     stagingLocation,
@@ -446,6 +471,15 @@ export function receiveInboundContainer(
     receiveTime: new Date().toLocaleString("zh-CN"),
     receiver: "当前用户",
     note: data.note,
+    status: receivedItems.some((item) => item.inspectionRequired) ? "待质检" : "已完成",
+    inspectionItems: receivedItems.map((item) => ({
+      sku: item.sku,
+      qty: item.qty,
+      qualifiedQty: item.inspectionRequired ? null : item.qty,
+      defectiveQty: item.inspectionRequired ? null : 0,
+      conclusion: item.inspectionRequired ? null : "合格",
+      reason: "",
+    })),
   };
   const log: InboundLog = {
     time: receiveRecord.receiveTime,
@@ -474,6 +508,7 @@ export function receiveInboundContainer(
       customerName: detail.customer,
       referenceNo: detail.referenceNo,
       receiveBatchNo: batchNo,
+      receiptNo: batchNo,
       receiveTime: receiveRecord.receiveTime,
       stagingLocation,
       container: data.container,
@@ -553,6 +588,94 @@ export function recordInboundInspectionResults(
   details[detailIndex] = updatedDetail;
   saveDetails(details);
   return updatedDetail;
+}
+
+/** 方案二：质检是收货单的子表，不再生成独立质检单。 */
+export function listReceiptOrders() {
+  return readDetails().flatMap((detail) => detail.receiveRecords.map((record) => ({
+    inboundId: detail.id,
+    supplier: detail.customer,
+    warehouse: "深圳主仓",
+    ...record,
+  })));
+}
+
+export function startReceiptInspection(inboundId: string, receiptNo: string): ReceiveRecord | undefined {
+  const details = readDetails();
+  const detailIndex = details.findIndex((detail) => detail.id === inboundId);
+  if (detailIndex < 0) return undefined;
+  const detail = details[detailIndex];
+  const recordIndex = detail.receiveRecords.findIndex((record) => record.receiptNo === receiptNo);
+  if (recordIndex < 0 || detail.receiveRecords[recordIndex].status !== "待质检") return undefined;
+  const record = { ...detail.receiveRecords[recordIndex], status: "质检中" as const };
+  const receiveRecords = [...detail.receiveRecords];
+  receiveRecords[recordIndex] = record;
+  details[detailIndex] = { ...detail, receiveRecords };
+  saveDetails(details);
+  return record;
+}
+
+export function completeReceiptInspection(
+  inboundId: string,
+  receiptNo: string,
+  results: Array<{ sku: string; qualifiedQty: number; defectiveQty: number; reason?: string }>
+): { receipt: ReceiveRecord; goodReceipt?: ReceivedContainerSnapshot; defectiveReceipt?: ReceivedContainerSnapshot } | undefined {
+  const details = readDetails();
+  const detailIndex = details.findIndex((detail) => detail.id === inboundId);
+  if (detailIndex < 0) return undefined;
+  const detail = details[detailIndex];
+  const recordIndex = detail.receiveRecords.findIndex((record) => record.receiptNo === receiptNo);
+  if (recordIndex < 0) return undefined;
+  const receipt = detail.receiveRecords[recordIndex];
+  if (receipt.status !== "待质检" && receipt.status !== "质检中") return undefined;
+  if (results.length !== receipt.inspectionItems.length) throw new Error("收货单内每个 SKU 都必须完成质检");
+
+  const inspectionItems = receipt.inspectionItems.map((line) => {
+    const result = results.find((item) => item.sku === line.sku);
+    if (!result || result.qualifiedQty < 0 || result.defectiveQty < 0 || result.qualifiedQty + result.defectiveQty !== line.qty) {
+      throw new Error(`SKU ${line.sku} 的良品数量与次品数量之和必须等于实收数量`);
+    }
+    return {
+      ...line,
+      qualifiedQty: result.qualifiedQty,
+      defectiveQty: result.defectiveQty,
+      conclusion: result.defectiveQty === 0 ? "合格" as const : result.qualifiedQty === 0 ? "不合格" as const : "部分不合格" as const,
+      reason: result.reason || "",
+    };
+  });
+  const updatedReceipt = { ...receipt, status: "已完成" as const, inspectionItems };
+  const receiveRecords = [...detail.receiveRecords];
+  receiveRecords[recordIndex] = updatedReceipt;
+  details[detailIndex] = {
+    ...detail,
+    receiveRecords,
+    logs: [{ time: new Date().toLocaleString("zh-CN"), operator: "当前用户", action: "收货单质检", detail: `收货单 ${receiptNo} 质检完成` }, ...detail.logs],
+  };
+  saveDetails(details);
+
+  const base = {
+    inboundId,
+    customerName: detail.customer,
+    referenceNo: detail.referenceNo,
+    receiveBatchNo: receipt.batchNo,
+    receiptNo,
+    receiveTime: new Date().toLocaleString("zh-CN"),
+    stagingLocation: receipt.stagingLocation,
+    container: receipt.container,
+  };
+  const toItems = (kind: "qualifiedQty" | "defectiveQty") => inspectionItems
+    .filter((line) => (line[kind] || 0) > 0)
+    .map((line) => {
+      const item = detail.items.find((target) => target.sku === line.sku)!;
+      return { sku: line.sku, productName: item.productName, spec: item.spec, qty: line[kind]!, inspectionRequired: true };
+    });
+  const goodItems = toItems("qualifiedQty");
+  const defectiveItems = toItems("defectiveQty");
+  return {
+    receipt: updatedReceipt,
+    goodReceipt: goodItems.length ? { ...base, items: goodItems, putawayType: "良品上架" } : undefined,
+    defectiveReceipt: defectiveItems.length ? { ...base, items: defectiveItems, putawayType: "次品上架" } : undefined,
+  };
 }
 
 export function completeInboundPutawayFromDetail(

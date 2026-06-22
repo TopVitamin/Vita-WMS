@@ -13,6 +13,8 @@ export interface PutawayOrder {
   sourceLocationCode: string;
   sourceLocationName: string;
   receiveBatchNo?: string;
+  receiptNo?: string;
+  putawayType: "良品上架" | "次品上架";
   container: {
     containerNo: string;
     containerType: string;
@@ -56,6 +58,8 @@ const seedPutawayOrders: PutawayOrder[] = [
     sourceLocationCode: "STG-RCV-PALLET",
     sourceLocationName: "托盘收货暂存库位",
     receiveBatchNo: "RCV-20241028-002",
+    receiptNo: "RCV-20241028-002",
+    putawayType: "良品上架",
     container: {
       containerNo: "PLT-002",
       containerType: "托盘",
@@ -77,6 +81,7 @@ const seedPutawayOrders: PutawayOrder[] = [
     warehouseArea: "B区",
     createTime: "2025-04-28 10:15:33",
     status: "上架中",
+    putawayType: "良品上架",
     sourceLocationCode: "STG-RCV-PALLET",
     sourceLocationName: "托盘收货暂存库位",
     container: {
@@ -101,6 +106,7 @@ const seedPutawayOrders: PutawayOrder[] = [
     warehouseArea: "A区",
     createTime: "2025-04-27 16:20:45",
     status: "已上架",
+    putawayType: "良品上架",
     sourceLocationCode: "STG-RCV-CARTON",
     sourceLocationName: "整箱收货暂存库位",
     container: {
@@ -158,8 +164,8 @@ export function createPutawayOrderFromReceipt(receipt: ReceivedContainerSnapshot
   const existing = orders.find(
     (order) =>
       order.inboundId === receipt.inboundId &&
-      order.receiveBatchNo === receipt.receiveBatchNo &&
-      order.container.containerNo === receipt.container.containerNo
+      order.receiptNo === receipt.receiptNo &&
+      order.putawayType === (receipt.putawayType || "良品上架")
   );
   if (existing) return existing;
 
@@ -173,6 +179,8 @@ export function createPutawayOrderFromReceipt(receipt: ReceivedContainerSnapshot
     sourceLocationCode: receipt.stagingLocation.code,
     sourceLocationName: receipt.stagingLocation.name,
     receiveBatchNo: receipt.receiveBatchNo,
+    receiptNo: receipt.receiptNo,
+    putawayType: receipt.putawayType || "良品上架",
     container: {
       containerNo: receipt.container.containerNo,
       containerType: receipt.container.containerType,
